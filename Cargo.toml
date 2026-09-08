@@ -1,0 +1,108 @@
+[package]
+name = "spatial6"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.89"
+authors = ["Daisuke Nagao"]
+description = "Backend-agnostic 6D spatial vectors, transforms, and inertias for rigid-body dynamics"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/daisuke-nagao/spatial6"
+documentation = "https://docs.rs/spatial6"
+readme = "README.md"
+keywords = ["robotics", "spatial", "dynamics", "rigid-body", "linear-algebra"]
+categories = ["mathematics", "science", "simulation"]
+include = ["src/**", "tests/**", "benches/**", "examples/**", "Cargo.toml", "README.md", "LICENSES/**", "CHANGELOG.md"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[features]
+default = ["builtin"]
+builtin = []
+nalgebra = ["dep:nalgebra"]
+glam = ["dep:glam"]
+serde = ["dep:serde", "nalgebra?/serde-serialize", "glam?/serde"]
+
+[dependencies]
+glam = { version = "0.33.6", optional = true, default-features = false, features = ["std", "f64"] }
+nalgebra = { version = "0.35", optional = true, default-features = false, features = ["std"] }
+num-traits = "0.2"
+serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
+
+[dev-dependencies]
+featherstone = { version = "0.1.0", features = ["serde", "tracing"] }
+spatial-math = { version = "0.4.0-beta.1", features = ["approx", "f64", "serde"] }
+serde_json = "1.0"
+criterion = "0.8.2"
+# featherstone's public API is built on its own pinned nalgebra 0.33, distinct
+# from (and semver-incompatible with) this crate's own optional `nalgebra`
+# dependency (0.35) -- renamed to avoid an extern-name clash when benchmarks
+# run under `--all-features`.
+nalgebra-featherstone = { package = "nalgebra", version = "0.33" }
+
+[[example]]
+name = "composite_rigid_body_builtin"
+required-features = ["builtin"]
+
+[[example]]
+name = "rnea_builtin"
+required-features = ["builtin"]
+
+[[example]]
+name = "articulated_inertia_builtin"
+required-features = ["builtin"]
+
+[[example]]
+name = "backend_builtin"
+required-features = ["builtin"]
+
+[[example]]
+name = "backend_nalgebra"
+required-features = ["nalgebra"]
+
+[[example]]
+name = "backend_glam"
+required-features = ["glam"]
+
+[[example]]
+name = "rnea_nalgebra"
+required-features = ["nalgebra"]
+
+[[example]]
+name = "rnea_glam"
+required-features = ["glam"]
+
+[[example]]
+name = "composite_rigid_body_nalgebra"
+required-features = ["nalgebra"]
+
+[[example]]
+name = "composite_rigid_body_glam"
+required-features = ["glam"]
+
+[[example]]
+name = "articulated_inertia_nalgebra"
+required-features = ["nalgebra"]
+
+[[example]]
+name = "articulated_inertia_glam"
+required-features = ["glam"]
+
+[[bench]]
+name = "primitives"
+harness = false
+
+[[bench]]
+name = "rnea_chain"
+harness = false
+required-features = ["builtin"]
+
+[[bench]]
+name = "vs_featherstone"
+harness = false
+required-features = ["builtin"]
+
+[[bench]]
+name = "vs_spatial_math"
+harness = false
+required-features = ["builtin"]
