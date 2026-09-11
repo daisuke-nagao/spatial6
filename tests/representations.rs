@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use spatial6::{
-    ForceVector, MotionVector, RigidBodyInertia, SpatialRepresentation, SpatialScalar,
-    SpatialTransform,
+    ArticulatedBodyInertia, ForceVector, MotionVector, RigidBodyInertia, SpatialRepresentation,
+    SpatialScalar, SpatialTransform,
 };
 
 fn assert_num_traits_float<T: num_traits::Float>() {}
@@ -140,6 +140,69 @@ fn user_defined_representation_drives_the_complete_api() {
     {
         assert_close(actual, expected);
     }
+
+    let articulated =
+        ArticulatedBodyInertia::<f64, Custom>::try_from_matrix(inertia.matrix()).unwrap();
+    assert_eq!(articulated.matrix(), inertia.matrix());
+    let zeros = ArticulatedBodyInertia::<f64, Custom>::zeros();
+    assert_eq!(zeros.matrix(), [[0.0; 6]; 6]);
+    assert_eq!(
+        zeros.apply(&acceleration),
+        ForceVector::<f64, Custom>::zeros()
+    );
+    assert_eq!(
+        articulated.apply(&acceleration),
+        inertia.apply(&acceleration)
+    );
+
+    let converted = ArticulatedBodyInertia::try_from(&inertia).unwrap();
+    assert_eq!(converted, articulated);
+
+    let combined_articulated = articulated.try_combined(&articulated).unwrap();
+    assert_eq!(
+        combined_articulated.apply(&acceleration),
+        inertia.apply(&acceleration) + inertia.apply(&acceleration)
+    );
+
+    let update = ForceVector::<f64, Custom>::from_array([1.0, -2.0, 0.5, 3.0, -1.0, 2.0]);
+    let updated = articulated.try_rank_one_updated(0.25, &update).unwrap();
+    let mut expected_updated = inertia.matrix();
+    let update_array = update.to_array();
+    for (row, expected_row) in expected_updated.iter_mut().enumerate() {
+        for (column, expected) in expected_row.iter_mut().enumerate() {
+            *expected += 0.25 * update_array[row] * update_array[column];
+        }
+    }
+    assert_eq!(updated.matrix(), expected_updated);
+    assert_eq!(
+        updated.apply(&MotionVector::<f64, Custom>::zeros()),
+        ForceVector::<f64, Custom>::zeros()
+    );
+    assert_eq!(
+        articulated
+            .try_transformed(&SpatialTransform::<f64, Custom>::identity())
+            .unwrap(),
+        articulated
+    );
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn custom_representation_abi_serde_has_no_marker_serde_bound() {
+    let inertia = ArticulatedBodyInertia::<f64, Custom>::try_from_matrix([
+        [1.0, 0.2, 0.0, 0.0, 0.0, 0.0],
+        [0.2, 2.0, 0.3, 0.0, 0.0, 0.0],
+        [0.0, 0.3, 3.0, 0.4, 0.0, 0.0],
+        [0.0, 0.0, 0.4, 4.0, 0.5, 0.0],
+        [0.0, 0.0, 0.0, 0.5, 5.0, 0.6],
+        [0.0, 0.0, 0.0, 0.0, 0.6, 6.0],
+    ])
+    .unwrap();
+    let json = serde_json::to_string(&inertia).unwrap();
+    assert_eq!(
+        serde_json::from_str::<ArticulatedBodyInertia<f64, Custom>>(&json).unwrap(),
+        inertia
+    );
 }
 
 #[cfg(feature = "builtin")]

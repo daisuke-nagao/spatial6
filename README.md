@@ -9,7 +9,7 @@ spatial6 = "1.0"
 ```
 
 The crate provides `MotionVector`, `ForceVector`, `SpatialTransform`,
-and `RigidBodyInertia`.
+`RigidBodyInertia`, and `ArticulatedBodyInertia`.
 
 | Feature | Backend |
 | --- | --- |
@@ -49,6 +49,21 @@ cargo run --example composite_rigid_body_glam --no-default-features --features g
 cargo run --example articulated_inertia_builtin --no-default-features --features builtin
 cargo run --example articulated_inertia_nalgebra --no-default-features --features nalgebra
 cargo run --example articulated_inertia_glam --no-default-features --features glam
+```
+
+`ArticulatedBodyInertia` represents the symmetric inertia operator produced by
+eliminating a joint acceleration under a specified joint force. The core
+reduction uses only backend-agnostic public operations:
+
+```rust,ignore
+let full = ArticulatedBodyInertia::try_from(&rigid)?;
+let u = full.apply(&joint_motion);
+let d = joint_motion.dot(&u);
+assert!(d.is_finite() && d > 0.0);
+
+let reduced = full.try_rank_one_updated(-1.0 / d, &u)?;
+let child_in_parent = reduced.try_transformed(&child_to_parent)?;
+let accumulated = parent.try_combined(&child_in_parent)?;
 ```
 
 ## Contributing
