@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::fmt;
+use std::marker::PhantomData;
 use std::ops::Mul;
 
 #[cfg(feature = "builtin")]
@@ -12,10 +13,10 @@ use crate::transform::SpatialTransform;
 use crate::vector::{ForceVector, MotionVector, SpatialMatrix};
 use crate::{SpatialRepresentation, SpatialScalar};
 
-/// Errors returned when constructing an inertia from invalid data.
+/// Errors returned when constructing or operating on an inertia.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InertiaError {
-    /// At least one input component is not finite.
+    /// At least one input or derived component is not finite.
     NonFinite,
     /// The mass is zero or negative.
     NonPositiveMass,
@@ -120,6 +121,53 @@ fn symmetric_matrix<T: SpatialScalar, const N: usize>(
         }
     }
     Ok(symmetric)
+}
+
+fn safe_average<T: SpatialScalar>(left: T, right: T) -> T {
+    let two = T::one() + T::one();
+    let sum = left + right;
+    if sum.is_finite() {
+        sum / two
+    } else {
+        left / two + right / two
+    }
+}
+
+#[allow(clippy::needless_range_loop)]
+fn articulated_symmetric_matrix<T: SpatialScalar, const N: usize>(
+    matrix: &[[T; N]; N],
+) -> Result<[[T; N]; N], InertiaError> {
+    if !matrix_is_finite(matrix) {
+        return Err(InertiaError::NonFinite);
+    }
+
+    let mut symmetric = *matrix;
+    for row in 0..N {
+        for column in (row + 1)..N {
+            if !approximately_equal(matrix[row][column], matrix[column][row]) {
+                return Err(InertiaError::NonSymmetric);
+            }
+            let value = safe_average(matrix[row][column], matrix[column][row]);
+            symmetric[row][column] = value;
+            symmetric[column][row] = value;
+        }
+    }
+    Ok(symmetric)
+}
+
+#[allow(clippy::needless_range_loop)]
+fn pack_upper_symmetric_matrix<T: SpatialScalar, const N: usize, const P: usize>(
+    matrix: &[[T; N]; N],
+) -> [T; P] {
+    let mut packed = [T::zero(); P];
+    let mut index = 0;
+    for row in 0..N {
+        for column in row..N {
+            packed[index] = matrix[row][column];
+            index += 1;
+        }
+    }
+    packed
 }
 
 macro_rules! define_rigid_body_inertia {
@@ -442,6 +490,225 @@ where
         let matrix = self.matrix();
         let right_vector = right.to_vector();
         R::matrix6_solve_positive_definite(&matrix, &right_vector).map(MotionVector::from_vector)
+    }
+}
+
+macro_rules! define_articulated_body_inertia {
+    ($($generics:tt)*) => {
+        /// A symmetric six-by-six spatial operator stored as its twenty-one
+        /// upper-triangular components in row-major order.
+        ///
+        /// Unlike [`RigidBodyInertia`], an articulated-body inertia is allowed
+        /// to be indefinite. Construction validates only finiteness and
+        /// symmetry, so it can represent the positive-semidefinite operators
+        /// produced by articulated-body reduction.
+        #[derive(Clone, Copy, Debug, PartialEq)]
+        pub struct ArticulatedBodyInertia<$($generics)*> {
+            packed: [T; 21],
+            representation: PhantomData<R>,
+        }
+    };
+}
+
+#[cfg(feature = "builtin")]
+define_articulated_body_inertia!(T: SpatialScalar = f64, R: SpatialRepresentation<T> = Builtin);
+#[cfg(not(feature = "builtin"))]
+define_articulated_body_inertia!(T: SpatialScalar, R: SpatialRepresentation<T>);
+
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+#[serde(bound(deserialize = "T: serde::Deserialize<'de>"))]
+struct RawArticulatedBodyInertia<T> {
+    packed: [T; 21],
+}
+
+#[cfg(feature = "serde")]
+impl<T, R> serde::Serialize for ArticulatedBodyInertia<T, R>
+where
+    T: SpatialScalar + serde::Serialize,
+    R: SpatialRepresentation<T>,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let mut state = serializer.serialize_struct("ArticulatedBodyInertia", 1)?;
+        state.serialize_field("packed", &self.packed)?;
+        state.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T, R> serde::Deserialize<'de> for ArticulatedBodyInertia<T, R>
+where
+    T: SpatialScalar + serde::Deserialize<'de>,
+    R: SpatialRepresentation<T>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = RawArticulatedBodyInertia::<T>::deserialize(deserializer)?;
+        if raw.packed.iter().any(|value| !value.is_finite()) {
+            return Err(serde::de::Error::custom(InertiaError::NonFinite));
+        }
+        Ok(Self {
+            packed: raw.packed,
+            representation: PhantomData,
+        })
+    }
+}
+
+impl<T, R> ArticulatedBodyInertia<T, R>
+where
+    T: SpatialScalar,
+    R: SpatialRepresentation<T>,
+{
+    /// Validates and creates an articulated-body inertia from a six-by-six
+    /// spatial matrix. All entries must be finite and every off-diagonal pair
+    /// must agree within `64 * T::epsilon() * max(1, |a|, |b|)`.
+    pub fn try_from_matrix(matrix: SpatialMatrix<T, R>) -> Result<Self, InertiaError> {
+        let matrix = R::matrix6_to_array(&matrix);
+        let matrix = articulated_symmetric_matrix(&matrix)?;
+        Ok(Self {
+            packed: pack_upper_symmetric_matrix::<T, 6, 21>(&matrix),
+            representation: PhantomData,
+        })
+    }
+
+    /// Returns the zero articulated-body inertia.
+    pub fn zeros() -> Self {
+        Self {
+            packed: [T::zero(); 21],
+            representation: PhantomData,
+        }
+    }
+
+    /// Returns the symmetric six-by-six matrix represented by this value.
+    pub fn matrix(&self) -> SpatialMatrix<T, R> {
+        R::matrix6_from_array(unpack_symmetric_matrix::<T, 6, 21>(&self.packed))
+    }
+
+    /// Applies this inertia to a motion vector, producing a force vector.
+    pub fn apply(&self, motion: &MotionVector<T, R>) -> ForceVector<T, R> {
+        let matrix = self.matrix();
+        let motion = motion.to_vector();
+        ForceVector::from_vector(R::matrix6_vector_mul(&matrix, &motion))
+    }
+
+    /// Adds another articulated-body inertia expressed in the same frame.
+    pub fn try_combined(&self, other: &Self) -> Result<Self, InertiaError> {
+        let mut packed = [T::zero(); 21];
+        for (index, value) in packed.iter_mut().enumerate() {
+            *value = self.packed[index] + other.packed[index];
+            if !value.is_finite() {
+                return Err(InertiaError::NonFinite);
+            }
+        }
+        Ok(Self {
+            packed,
+            representation: PhantomData,
+        })
+    }
+
+    /// Applies the symmetric rank-one update `self + alpha * u * uᵀ`.
+    #[allow(clippy::needless_range_loop)]
+    pub fn try_rank_one_updated(
+        &self,
+        alpha: T,
+        u: &ForceVector<T, R>,
+    ) -> Result<Self, InertiaError> {
+        if !alpha.is_finite() || !u.is_finite() {
+            return Err(InertiaError::NonFinite);
+        }
+        if alpha == T::zero() {
+            return Ok(*self);
+        }
+
+        let coordinates = u.to_array();
+        let mut scaled = [T::zero(); 6];
+        for (index, value) in scaled.iter_mut().enumerate() {
+            *value = alpha * coordinates[index];
+            if !value.is_finite() {
+                return Err(InertiaError::NonFinite);
+            }
+        }
+
+        let mut packed = [T::zero(); 21];
+        let mut index = 0;
+        for row in 0..6 {
+            for column in row..6 {
+                let contribution = scaled[row] * coordinates[column];
+                if !contribution.is_finite() {
+                    return Err(InertiaError::NonFinite);
+                }
+                packed[index] = self.packed[index] + contribution;
+                if !packed[index].is_finite() {
+                    return Err(InertiaError::NonFinite);
+                }
+                index += 1;
+            }
+        }
+
+        Ok(Self {
+            packed,
+            representation: PhantomData,
+        })
+    }
+
+    /// Re-expresses this inertia in the transform's destination frame using
+    /// the force-space congruence `F * self * Fᵀ`.
+    pub fn try_transformed(
+        &self,
+        transform: &SpatialTransform<T, R>,
+    ) -> Result<Self, InertiaError> {
+        let force = transform.force_matrix();
+        let force_array = R::matrix6_to_array(&force);
+        if !matrix_is_finite(&force_array) {
+            return Err(InertiaError::NonFinite);
+        }
+
+        let left = R::matrix6_mul(&force, &self.matrix());
+        let left_array = R::matrix6_to_array(&left);
+        if !matrix_is_finite(&left_array) {
+            return Err(InertiaError::NonFinite);
+        }
+
+        let transformed = R::matrix6_mul(&left, &R::matrix6_transpose(&force));
+        let transformed_array = R::matrix6_to_array(&transformed);
+        if !matrix_is_finite(&transformed_array) {
+            return Err(InertiaError::NonFinite);
+        }
+
+        let mut symmetric = transformed_array;
+        for row in 0..6 {
+            for column in (row + 1)..6 {
+                let value = safe_average(
+                    transformed_array[row][column],
+                    transformed_array[column][row],
+                );
+                symmetric[row][column] = value;
+                symmetric[column][row] = value;
+            }
+        }
+        Ok(Self {
+            packed: pack_upper_symmetric_matrix::<T, 6, 21>(&symmetric),
+            representation: PhantomData,
+        })
+    }
+}
+
+impl<T, R> TryFrom<&RigidBodyInertia<T, R>> for ArticulatedBodyInertia<T, R>
+where
+    T: SpatialScalar,
+    R: SpatialRepresentation<T>,
+{
+    type Error = InertiaError;
+
+    fn try_from(rigid: &RigidBodyInertia<T, R>) -> Result<Self, Self::Error> {
+        Self::try_from_matrix(rigid.matrix())
     }
 }
 

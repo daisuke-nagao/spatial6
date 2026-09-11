@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A backend-agnostic `ArticulatedBodyInertia` API for symmetric spatial inertia
+  operators produced by joint-acceleration elimination.
+
+### Changed
+
+- The articulated-inertia examples now demonstrate eliminating joint
+  acceleration under a specified joint force through the public API.
+
 ## [1.0.0] - 2026-09-09
 
 ### Added

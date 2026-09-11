@@ -30,4 +30,4 @@ pub use transform::SpatialTransform;
 
 mod inertia;
 
-pub use inertia::{InertiaError, RigidBodyInertia, SpatialInertia};
+pub use inertia::{ArticulatedBodyInertia, InertiaError, RigidBodyInertia, SpatialInertia};
