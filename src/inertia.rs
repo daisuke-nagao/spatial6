@@ -495,13 +495,17 @@ where
 
 macro_rules! define_articulated_body_inertia {
     ($($generics:tt)*) => {
-        /// A symmetric six-by-six spatial operator stored as its twenty-one
-        /// upper-triangular components in row-major order.
+        /// A finite symmetric six-by-six spatial operator stored as its
+        /// twenty-one upper-triangular components in row-major order.
         ///
-        /// Unlike [`RigidBodyInertia`], an articulated-body inertia is allowed
-        /// to be indefinite. Construction validates only finiteness and
-        /// symmetry, so it can represent the positive-semidefinite operators
-        /// produced by articulated-body reduction.
+        /// Unlike [`RigidBodyInertia`], an articulated-body inertia may be
+        /// indefinite. Public matrix construction validates finiteness and
+        /// symmetry, while derived construction validates finiteness and
+        /// canonicalizes its mathematically symmetric result. Neither path
+        /// certifies positive semidefiniteness or physical realizability.
+        /// Frame agreement between an inertia and its operands is maintained
+        /// by the caller; methods that change frames document their source and
+        /// destination frames explicitly.
         #[derive(Clone, Copy, Debug, PartialEq)]
         pub struct ArticulatedBodyInertia<$($generics)*> {
             packed: [T; 21],
@@ -566,6 +570,7 @@ where
     T: SpatialScalar,
     R: SpatialRepresentation<T>,
 {
+    // This path is reserved for arrays derived from formulas symmetric in exact arithmetic.
     #[allow(clippy::needless_range_loop)]
     fn try_from_derived_symmetric_array(matrix: [[T; 6]; 6]) -> Result<Self, InertiaError> {
         if !matrix_is_finite(&matrix) {
@@ -589,7 +594,20 @@ where
 
     /// Validates and creates an articulated-body inertia from a six-by-six
     /// spatial matrix. All entries must be finite and every off-diagonal pair
-    /// must agree within `64 * T::epsilon() * max(1, |a|, |b|)`.
+    /// must agree within `64 * T::epsilon() * max(1, |a|, |b|)`. Accepted
+    /// off-diagonal pairs are averaged before storage; diagonal entries are
+    /// retained unchanged.
+    ///
+    /// The matrix must be expressed in the same frame as any other operator
+    /// with which the result is used. Frame identity is maintained by the
+    /// caller.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InertiaError::NonFinite`] if any matrix entry is NaN or
+    /// infinite. This check is performed before symmetry checks. Returns
+    /// [`InertiaError::NonSymmetric`] if a finite off-diagonal pair is outside
+    /// the tolerance above.
     pub fn try_from_matrix(matrix: SpatialMatrix<T, R>) -> Result<Self, InertiaError> {
         let matrix = R::matrix6_to_array(&matrix);
         let matrix = articulated_symmetric_matrix(&matrix)?;
@@ -613,13 +631,27 @@ where
     }
 
     /// Applies this inertia to a motion vector, producing a force vector.
+    ///
+    /// `motion` must use the same frame as this inertia; the returned force is
+    /// expressed in that frame. This method performs no finiteness validation
+    /// on its input, intermediate values, or result, so non-finite values may
+    /// propagate.
     pub fn apply(&self, motion: &MotionVector<T, R>) -> ForceVector<T, R> {
         let matrix = self.matrix();
         let motion = motion.to_vector();
         ForceVector::from_vector(R::matrix6_vector_mul(&matrix, &motion))
     }
 
-    /// Adds another articulated-body inertia expressed in the same frame.
+    /// Adds the corresponding stored components of another articulated-body
+    /// inertia expressed in the same frame.
+    ///
+    /// Frame agreement is maintained by the caller. The result is a new
+    /// operator; neither input is modified.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InertiaError::NonFinite`] if any componentwise sum is
+    /// non-finite, including when an addition overflows.
     pub fn try_combined(&self, other: &Self) -> Result<Self, InertiaError> {
         let mut packed = [T::zero(); 21];
         for (index, value) in packed.iter_mut().enumerate() {
@@ -635,6 +667,17 @@ where
     }
 
     /// Applies the symmetric rank-one update `self + alpha * u * uᵀ`.
+    ///
+    /// `u` is a force-space vector in the same frame as this inertia. A
+    /// negative `alpha` can destroy positive semidefiniteness; this method does
+    /// not certify or preserve that property. Finiteness validation does not
+    /// certify numerical accuracy.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InertiaError::NonFinite`] if `alpha` or `u` is non-finite, or
+    /// if any scaled component, rank-one contribution, or updated stored
+    /// component is non-finite. `u` is validated even when `alpha` is zero.
     #[allow(clippy::needless_range_loop)]
     pub fn try_rank_one_updated(
         &self,
@@ -679,8 +722,25 @@ where
         })
     }
 
-    /// Re-expresses this inertia in the transform's destination frame using
-    /// the force-space congruence `F * self * Fᵀ`.
+    /// Re-expresses this inertia from the transform's source frame to its
+    /// destination frame using the force-space congruence `F * self * Fᵀ`.
+    ///
+    /// The input inertia must be expressed in the transform's source frame;
+    /// the returned inertia is expressed in its destination frame. Here `F`
+    /// is `transform.force_matrix()`, which maps source-frame forces to
+    /// destination-frame forces. The transform's rotation is assumed to be a
+    /// valid proper orthogonal rotation under [`SpatialRepresentation`]'s
+    /// invariant; this method does not validate that assumption. Roundoff in
+    /// the derived congruence result is canonicalized by averaging opposite
+    /// entries before storage. Finiteness checks do not certify numerical
+    /// accuracy.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InertiaError::NonFinite`] if `F`, the first product `F *
+    /// self`, or the final product is non-finite. An overflowing intermediate
+    /// is rejected even if a different evaluation order could produce a finite
+    /// final value.
     pub fn try_transformed(
         &self,
         transform: &SpatialTransform<T, R>,
@@ -710,6 +770,19 @@ where
 {
     type Error = InertiaError;
 
+    /// Converts a rigid-body inertia to an articulated-body inertia.
+    ///
+    /// The rigid-body matrix is symmetric in exact arithmetic. Derived
+    /// floating-point roundoff is canonicalized by averaging opposite entries
+    /// before storage, so `NonSymmetric` is not returned for a conforming
+    /// backend. Diagonal entries are retained from the derived matrix.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InertiaError::NonFinite`] if a derived matrix entry is
+    /// non-finite, including an intermediate overflow during matrix
+    /// construction. A conforming backend does not produce
+    /// [`InertiaError::NonSymmetric`] from this conversion.
     fn try_from(rigid: &RigidBodyInertia<T, R>) -> Result<Self, Self::Error> {
         let matrix = R::matrix6_to_array(&rigid.matrix());
         Self::try_from_derived_symmetric_array(matrix)
