@@ -88,6 +88,18 @@ required-features = ["nalgebra"]
 name = "articulated_inertia_glam"
 required-features = ["glam"]
 
+[[example]]
+name = "pose_chain_builtin"
+required-features = ["builtin"]
+
+[[example]]
+name = "pose_chain_nalgebra"
+required-features = ["nalgebra"]
+
+[[example]]
+name = "pose_chain_glam"
+required-features = ["glam"]
+
 [[bench]]
 name = "primitives"
 harness = false

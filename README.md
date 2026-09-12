@@ -49,6 +49,20 @@ cargo run --example composite_rigid_body_glam --no-default-features --features g
 cargo run --example articulated_inertia_builtin --no-default-features --features builtin
 cargo run --example articulated_inertia_nalgebra --no-default-features --features nalgebra
 cargo run --example articulated_inertia_glam --no-default-features --features glam
+
+cargo run --example pose_chain_builtin --no-default-features --features builtin
+cargo run --example pose_chain_nalgebra --no-default-features --features nalgebra
+cargo run --example pose_chain_glam --no-default-features --features glam
+```
+
+`to_pose_parts()` returns the local-to-reference rotation `Q` and the local
+origin's position `p` in reference coordinates. Use `from_pose_parts()` to
+rebuild a transform from those owned parts; the stored transform rotation and
+translation remain the source-to-destination `E`/`r` representation.
+
+```rust,ignore
+let (q_local_to_reference, p_in_reference) = transform.to_pose_parts();
+let restored = SpatialTransform::from_pose_parts(q_local_to_reference, p_in_reference);
 ```
 
 `ArticulatedBodyInertia` represents the symmetric inertia operator produced by
@@ -88,6 +102,7 @@ cargo test --no-default-features
 cargo test --no-default-features --features nalgebra
 cargo test --no-default-features --features glam
 cargo test --features serde
+cargo test --no-default-features --features serde
 cargo test --all-features
 cargo doc --no-deps --all-features
 ```

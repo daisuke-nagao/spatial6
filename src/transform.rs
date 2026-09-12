@@ -60,6 +60,21 @@ where
         }
     }
 
+    /// Creates a transform from pose parts.
+    ///
+    /// The returned transform maps the reference frame (source) to the local
+    /// frame (destination). `rotation_local_to_reference` is the local-to-reference
+    /// rotation; the stored rotation is its inverse because this type stores a
+    /// source-to-destination rotation. `position_in_reference` becomes the stored
+    /// translation unchanged. Rotation validity is not checked.
+    pub fn from_pose_parts(
+        rotation_local_to_reference: R::Rotation3,
+        position_in_reference: R::Vector3,
+    ) -> Self {
+        let rotation = R::rotation3_inverse(&rotation_local_to_reference);
+        Self::new(rotation, position_in_reference)
+    }
+
     /// Returns the identity transform.
     pub fn identity() -> Self {
         Self::new(R::rotation3_identity(), R::vector3_zero())
@@ -73,6 +88,44 @@ where
     /// Returns the source-coordinate vector from the source origin to the destination origin.
     pub fn translation(&self) -> &R::Vector3 {
         &self.translation
+    }
+
+    /// Returns the destination frame's pose relative to the source frame.
+    ///
+    /// The source frame is the reference frame and the destination frame is the
+    /// local frame. The returned pair is `(local-to-reference rotation, local origin in reference coordinates)`.
+    /// Its rotation is the inverse of the
+    /// stored source-to-destination rotation, while its position is copied from
+    /// the stored translation unchanged. Unlike [`Self::inverse`], this conversion
+    /// does not change the translation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[cfg(feature = "builtin")]
+    /// # {
+    /// use spatial6::SpatialTransform;
+    ///
+    /// let transform = SpatialTransform::<f64>::new(
+    ///     [[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+    ///     [1.0, 2.0, 3.0],
+    /// );
+    /// let (rotation_local_to_reference, position_in_reference) =
+    ///     transform.to_pose_parts();
+    /// assert_eq!(
+    ///     rotation_local_to_reference,
+    ///     [[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+    /// );
+    /// assert_eq!(position_in_reference, [1.0, 2.0, 3.0]);
+    /// let restored = SpatialTransform::<f64>::from_pose_parts(
+    ///     rotation_local_to_reference,
+    ///     position_in_reference,
+    /// );
+    /// assert_eq!(restored, transform);
+    /// # }
+    /// ```
+    pub fn to_pose_parts(&self) -> (R::Rotation3, R::Vector3) {
+        (R::rotation3_inverse(&self.rotation), self.translation)
     }
 
     /// Re-expresses a source-frame motion vector in the destination frame.

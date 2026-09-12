@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A backend-agnostic `ArticulatedBodyInertia` API for symmetric spatial inertia
   operators produced by joint-acceleration elimination.
+- `SpatialTransform::to_pose_parts` and `SpatialTransform::from_pose_parts` for
+  extracting and rebuilding local-to-reference pose components.
 
 ### Changed
 

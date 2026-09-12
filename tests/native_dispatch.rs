@@ -261,6 +261,20 @@ fn native_operations_do_not_round_trip_through_arrays() {
     assert_eq!(transformed_force.moment, [35.0, 33.0, 35.0]);
     assert_eq!(transformed_force.force, [-14.0, 13.0, 15.0]);
 
+    let (rotation_local_to_reference, position_in_reference) = transform.to_pose_parts();
+    assert_eq!(
+        rotation_local_to_reference,
+        [[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]
+    );
+    assert_eq!(position_in_reference, [3.0, 5.0, 7.0]);
+    assert_eq!(
+        SpatialTransform::<f64, Probe>::from_pose_parts(
+            rotation_local_to_reference,
+            position_in_reference,
+        ),
+        transform
+    );
+
     let inverse = transform.inverse();
     assert_eq!(
         *inverse.rotation(),
