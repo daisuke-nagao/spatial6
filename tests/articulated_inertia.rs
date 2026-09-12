@@ -902,20 +902,31 @@ mod backend_matrix {
             Err(InertiaError::NonFinite)
         );
 
-        let scale_two = SpatialTransform::<T, R>::new(
-            rotation::<T, R>([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 2.0]]),
-            R::vector3_from_array([T::zero(), T::zero(), T::zero()]),
+        let translation_transform = SpatialTransform::<T, R>::new(
+            rotation::<T, R>([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
+            R::vector3_from_array([scalar(2.0), T::zero(), T::zero()]),
         );
+        let transform_force = R::matrix6_to_array(&translation_transform.force_matrix());
+        assert!(
+            transform_force
+                .iter()
+                .flatten()
+                .all(|value| value.is_finite())
+        );
+
         let maximum = T::max_value();
         let mut first_product_matrix = [[0.0; 6]; 6];
-        first_product_matrix[0][0] = maximum.to_f64().unwrap();
+        first_product_matrix[5][5] = maximum.to_f64().unwrap();
         let first_product =
             ArticulatedBodyInertia::<T, R>::try_from_matrix(matrix::<T, R>(first_product_matrix))
                 .unwrap();
-        let first_product_reference = matrix_mul(
-            R::matrix6_to_array(&scale_two.force_matrix()),
-            abi_matrix(&first_product),
+        assert!(
+            abi_matrix(&first_product)
+                .iter()
+                .flatten()
+                .all(|value| value.is_finite())
         );
+        let first_product_reference = matrix_mul(transform_force, abi_matrix(&first_product));
         assert!(
             first_product_reference
                 .iter()
@@ -923,24 +934,29 @@ mod backend_matrix {
                 .any(|value| !value.is_finite())
         );
         assert_eq!(
-            first_product.try_transformed(&scale_two),
+            first_product.try_transformed(&translation_transform),
             Err(InertiaError::NonFinite)
         );
 
         let mut final_product_matrix = [[0.0; 6]; 6];
-        final_product_matrix[0][0] = (maximum / scalar::<T>(2.0)).to_f64().unwrap();
+        final_product_matrix[5][5] = (maximum / scalar::<T>(2.0)).to_f64().unwrap();
         let final_product =
             ArticulatedBodyInertia::<T, R>::try_from_matrix(matrix::<T, R>(final_product_matrix))
                 .unwrap();
-        let scale_force = R::matrix6_to_array(&scale_two.force_matrix());
-        let final_left_reference = matrix_mul(scale_force, abi_matrix(&final_product));
+        assert!(
+            abi_matrix(&final_product)
+                .iter()
+                .flatten()
+                .all(|value| value.is_finite())
+        );
+        let final_left_reference = matrix_mul(transform_force, abi_matrix(&final_product));
         assert!(
             final_left_reference
                 .iter()
                 .flatten()
                 .all(|value| value.is_finite())
         );
-        let final_product_reference = matrix_mul(final_left_reference, transpose(scale_force));
+        let final_product_reference = matrix_mul(final_left_reference, transpose(transform_force));
         assert!(
             final_product_reference
                 .iter()
@@ -948,7 +964,7 @@ mod backend_matrix {
                 .any(|value| !value.is_finite())
         );
         assert_eq!(
-            final_product.try_transformed(&scale_two),
+            final_product.try_transformed(&translation_transform),
             Err(InertiaError::NonFinite)
         );
         assert_eq!(inertia, before);
