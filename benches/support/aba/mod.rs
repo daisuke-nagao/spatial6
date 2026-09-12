@@ -4,4 +4,5 @@
 
 pub mod featherstone_adapter;
 pub mod fixture;
+pub mod reference;
 pub mod spatial6_solver;

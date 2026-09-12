@@ -7,20 +7,11 @@ use featherstone::prelude::{
 };
 use nalgebra_featherstone::{Matrix3 as FsMatrix3, Vector3 as FsVector3};
 use spatial6::{
-    InertiaError, MotionVector, RigidBodyInertia, SpatialInertia as S6Inertia,
+    InertiaError, MotionVector, RigidBodyInertia, SpatialInertia as S6Inertia, SpatialScalar,
     SpatialTransform as S6Transform,
 };
 
 use super::fixture::{Axis, Fixture, FixtureError, LinkSpec};
-
-pub fn rotation_matrix(axis: Axis, angle: f32) -> [[f32; 3]; 3] {
-    let (sin, cos) = angle.sin_cos();
-    match axis {
-        Axis::X => [[1.0, 0.0, 0.0], [0.0, cos, -sin], [0.0, sin, cos]],
-        Axis::Y => [[cos, 0.0, sin], [0.0, 1.0, 0.0], [-sin, 0.0, cos]],
-        Axis::Z => [[cos, -sin, 0.0], [sin, cos, 0.0], [0.0, 0.0, 1.0]],
-    }
-}
 
 pub fn spatial6_inertia(link: &LinkSpec) -> Result<RigidBodyInertia<f32>, InertiaError> {
     S6Inertia::try_new(
@@ -48,12 +39,23 @@ pub fn featherstone_tree_transform(link: &LinkSpec) -> FsTransform {
     FsTransform::from_rotation_translation(rotation, translation)
 }
 
-pub fn spatial6_joint_transform(axis: Axis, q: f32) -> S6Transform<f32> {
-    S6Transform::new(rotation_matrix(axis, q), [0.0; 3])
+pub fn spatial6_joint_transform<T: SpatialScalar>(axis: Axis, q: T) -> S6Transform<T> {
+    let (sin, cos) = q.sin_cos();
+    let zero = T::zero();
+    let one = T::one();
+    let rotation = match axis {
+        Axis::X => [[one, zero, zero], [zero, cos, -sin], [zero, sin, cos]],
+        Axis::Y => [[cos, zero, sin], [zero, one, zero], [-sin, zero, cos]],
+        Axis::Z => [[cos, -sin, zero], [sin, cos, zero], [zero, zero, one]],
+    };
+    S6Transform::new(rotation, [zero; 3])
 }
 
 pub fn featherstone_joint_transform(axis: Axis, q: f32) -> FsTransform {
-    FsTransform::from_rotation_translation(fs_matrix(rotation_matrix(axis, q)), FsVector3::zeros())
+    GenJoint::Revolute {
+        axis: fs_vector(axis.as_array()),
+    }
+    .transform(&[q])
 }
 
 pub fn spatial6_transform(link: &LinkSpec, q: f32) -> S6Transform<f32> {
@@ -76,7 +78,6 @@ pub fn featherstone_body(fixture: &Fixture) -> Result<ArticulatedBody, FixtureEr
     fixture.validate()?;
 
     let mut body = ArticulatedBody::new();
-    set_featherstone_gravity(&mut body, fixture.gravity);
     for (index, link) in fixture.links.iter().enumerate() {
         spatial6_inertia(link).map_err(|error| match error {
             InertiaError::NonFinite => FixtureError::NonFinite,
@@ -96,13 +97,23 @@ pub fn featherstone_body(fixture: &Fixture) -> Result<ArticulatedBody, FixtureEr
             featherstone_tree_transform(link),
         );
     }
+    install_featherstone_state(&mut body, fixture)?;
+    Ok(body)
+}
+
+pub fn install_featherstone_state(
+    body: &mut ArticulatedBody,
+    fixture: &Fixture,
+) -> Result<(), FixtureError> {
+    fixture.validate()?;
+    set_featherstone_gravity(body, fixture.gravity);
     for index in 0..fixture.links.len() {
         body.set_joint_q(index, &[fixture.q[index]]);
         body.set_joint_qd(index, &[fixture.qd[index]]);
         body.set_joint_tau(index, &[fixture.tau[index]]);
     }
     body.clear_external_forces();
-    Ok(body)
+    Ok(())
 }
 
 fn diagonal_matrix(diagonal: [f32; 3]) -> [[f32; 3]; 3] {

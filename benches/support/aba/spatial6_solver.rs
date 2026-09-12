@@ -58,12 +58,12 @@ impl fmt::Display for AbaBenchError {
 impl std::error::Error for AbaBenchError {}
 
 pub struct Spatial6Model<T: SpatialScalar + From<f32>> {
-    pub rigid_inertias: Vec<RigidBodyInertia<T>>,
-    pub initial_abis: Vec<ArticulatedBodyInertia<T>>,
-    pub subspaces: Vec<MotionVector<T>>,
-    pub tree_transforms: Vec<SpatialTransform<T>>,
-    pub axes: Vec<Axis>,
-    pub gravity: [T; 3],
+    rigid_inertias: Vec<RigidBodyInertia<T>>,
+    initial_abis: Vec<ArticulatedBodyInertia<T>>,
+    subspaces: Vec<MotionVector<T>>,
+    tree_transforms: Vec<SpatialTransform<T>>,
+    axes: Vec<Axis>,
+    gravity: [T; 3],
 }
 
 pub struct Spatial6State<T: SpatialScalar + From<f32>> {
@@ -198,6 +198,11 @@ where
             qdd: vec![T::zero(); fixture.links.len()],
         })
     }
+
+    pub fn install_fixture(&mut self, fixture: &Fixture) -> Result<(), FixtureError> {
+        *self = Self::from_fixture(fixture)?;
+        Ok(())
+    }
 }
 
 pub fn spatial6_aba_allocating<'a, T>(
@@ -207,7 +212,6 @@ pub fn spatial6_aba_allocating<'a, T>(
 where
     T: SpatialScalar + From<f32>,
 {
-    model.validate()?;
     let n = model.rigid_inertias.len();
     if state.q.len() != n || state.qd.len() != n || state.tau.len() != n || state.qdd.len() != n {
         return Err(AbaBenchError::new(
@@ -232,10 +236,12 @@ where
     let mut u_force = vec![ForceVector::<T>::zeros(); n];
     let mut d = vec![T::zero(); n];
     let mut u_scalar = vec![T::zero(); n];
-    let mut qdd = vec![T::zero(); n];
 
     for index in 0..n {
-        let joint = revolute_transform(model.axes[index], state.q[index]);
+        let joint = super::featherstone_adapter::spatial6_joint_transform(
+            model.axes[index],
+            state.q[index],
+        );
         x_up[index] = model.tree_transforms[index].then(&joint);
         if !x_up[index]
             .motion_matrix()
@@ -362,16 +368,18 @@ where
         let joint_acceleration =
             (u_scalar[index] - acceleration_before_joint.dot(&u_force[index])) / d[index];
         if !acceleration_before_joint.is_finite() || !joint_acceleration.is_finite() {
+            state.qdd.fill(T::zero());
             return Err(AbaBenchError::new(
                 "pass3",
                 Some(index),
                 AbaBenchReason::NonFinite,
             ));
         }
-        qdd[index] = joint_acceleration;
+        state.qdd[index] = joint_acceleration;
         acceleration[index] =
             acceleration_before_joint + model.subspaces[index] * joint_acceleration;
         if !acceleration[index].is_finite() {
+            state.qdd.fill(T::zero());
             return Err(AbaBenchError::new(
                 "pass3",
                 Some(index),
@@ -380,23 +388,7 @@ where
         }
     }
 
-    state.qdd.copy_from_slice(&qdd);
     Ok(state.qdd.as_slice())
-}
-
-fn revolute_transform<T>(axis: Axis, angle: T) -> SpatialTransform<T>
-where
-    T: SpatialScalar,
-{
-    let (sin, cos) = angle.sin_cos();
-    let zero = T::zero();
-    let one = T::one();
-    let rotation = match axis {
-        Axis::X => [[one, zero, zero], [zero, cos, -sin], [zero, sin, cos]],
-        Axis::Y => [[cos, zero, sin], [zero, one, zero], [-sin, zero, cos]],
-        Axis::Z => [[cos, -sin, zero], [sin, cos, zero], [zero, zero, one]],
-    };
-    SpatialTransform::new(rotation, [zero; 3])
 }
 
 fn diagonal_matrix(diagonal: [f32; 3]) -> [[f32; 3]; 3] {

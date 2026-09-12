@@ -119,6 +119,7 @@ pub enum FixtureError {
     NonFinite,
     InvalidMass,
     InvalidInertia,
+    InvalidRotation,
 }
 
 impl fmt::Display for FixtureError {
@@ -129,6 +130,7 @@ impl fmt::Display for FixtureError {
             Self::NonFinite => "ABA fixture contains a non-finite value",
             Self::InvalidMass => "ABA fixture mass must be finite and positive",
             Self::InvalidInertia => "ABA fixture COM inertia must be finite and positive",
+            Self::InvalidRotation => "ABA fixture tree rotation must be proper orthogonal",
         };
         formatter.write_str(message)
     }
@@ -208,6 +210,9 @@ impl Fixture {
             if !link.is_finite() {
                 return Err(FixtureError::NonFinite);
             }
+            if !link.is_proper_rotation() {
+                return Err(FixtureError::InvalidRotation);
+            }
             if link.mass <= 0.0 {
                 return Err(FixtureError::InvalidMass);
             }
@@ -220,6 +225,27 @@ impl Fixture {
             }
         }
         Ok(())
+    }
+}
+
+impl LinkSpec {
+    fn is_proper_rotation(self) -> bool {
+        let rotation = self.tree_rotation;
+        let mut orthogonality_error = 0.0_f32;
+        for row in 0..3 {
+            for column in 0..3 {
+                let value = (0..3)
+                    .map(|index| rotation[index][row] * rotation[index][column])
+                    .sum::<f32>();
+                let expected = if row == column { 1.0 } else { 0.0 };
+                orthogonality_error = orthogonality_error.max((value - expected).abs());
+            }
+        }
+        let determinant = rotation[0][0]
+            * (rotation[1][1] * rotation[2][2] - rotation[1][2] * rotation[2][1])
+            - rotation[0][1] * (rotation[1][0] * rotation[2][2] - rotation[1][2] * rotation[2][0])
+            + rotation[0][2] * (rotation[1][0] * rotation[2][1] - rotation[1][1] * rotation[2][0]);
+        orthogonality_error <= 1.0e-5 && (determinant - 1.0).abs() <= 1.0e-5
     }
 }
 
