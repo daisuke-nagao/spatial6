@@ -4,8 +4,12 @@
 
 #![cfg(feature = "serde")]
 
-use spatial6::{ForceVector, MotionVector, RigidBodyInertia, SpatialTransform};
+#[cfg(feature = "builtin")]
+use spatial6::{ForceVector, RigidBodyInertia};
+#[cfg(any(feature = "builtin", feature = "nalgebra", feature = "glam"))]
+use spatial6::{MotionVector, SpatialTransform};
 
+#[cfg(any(feature = "builtin", feature = "nalgebra", feature = "glam"))]
 fn round_trip<T>(value: &T) -> T
 where
     T: serde::Serialize + serde::de::DeserializeOwned,
@@ -14,18 +18,21 @@ where
     serde_json::from_str(&json).expect("deserialize")
 }
 
+#[cfg(feature = "builtin")]
 #[test]
 fn motion_vector_round_trips() {
     let motion = MotionVector::<f64>::new([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]);
     assert_eq!(round_trip(&motion), motion);
 }
 
+#[cfg(feature = "builtin")]
 #[test]
 fn force_vector_round_trips() {
     let force = ForceVector::<f64>::new([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]);
     assert_eq!(round_trip(&force), force);
 }
 
+#[cfg(feature = "builtin")]
 #[test]
 fn spatial_transform_round_trips() {
     let transform = SpatialTransform::<f64>::new(
@@ -35,6 +42,7 @@ fn spatial_transform_round_trips() {
     assert_eq!(round_trip(&transform), transform);
 }
 
+#[cfg(feature = "builtin")]
 #[test]
 fn rigid_body_inertia_round_trips() {
     let inertia = RigidBodyInertia::<f64>::try_new(
@@ -92,6 +100,7 @@ fn glam_backend_spatial_transform_round_trips() {
     assert_eq!(round_trip(&transform), transform);
 }
 
+#[cfg(feature = "builtin")]
 #[test]
 fn rigid_body_inertia_deserialize_rejects_invalid_data() {
     // Hand-crafted, untrusted JSON with a negative mass: must not silently

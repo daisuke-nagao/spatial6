@@ -106,6 +106,19 @@ fn user_defined_representation_drives_the_complete_api() {
         transform.transform_motion(&velocity).to_vector(),
         [-2.0, 1.0, 3.0, -7.0, 3.0, 5.0]
     );
+    let (rotation_local_to_reference, position_in_reference) = transform.to_pose_parts();
+    assert_eq!(
+        rotation_local_to_reference,
+        [[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]
+    );
+    assert_eq!(position_in_reference, [3.0, 5.0, 7.0]);
+    assert_eq!(
+        SpatialTransform::<f64, Custom>::from_pose_parts(
+            rotation_local_to_reference,
+            position_in_reference,
+        ),
+        transform
+    );
 
     let inertia = RigidBodyInertia::<f64, Custom>::try_new(
         2.0,
@@ -202,6 +215,19 @@ fn custom_representation_abi_serde_has_no_marker_serde_bound() {
     assert_eq!(
         serde_json::from_str::<ArticulatedBodyInertia<f64, Custom>>(&json).unwrap(),
         inertia
+    );
+
+    let transform = SpatialTransform::<f64, Custom>::new(
+        [[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+        [3.0, 5.0, 7.0],
+    );
+    let (rotation_local_to_reference, position_in_reference) = transform.to_pose_parts();
+    assert_eq!(
+        SpatialTransform::<f64, Custom>::from_pose_parts(
+            rotation_local_to_reference,
+            position_in_reference,
+        ),
+        transform
     );
 }
 
