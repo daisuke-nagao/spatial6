@@ -201,7 +201,28 @@ where
 
     #[allow(dead_code)]
     pub fn install_fixture(&mut self, fixture: &Fixture) -> Result<(), FixtureError> {
-        *self = Self::from_fixture(fixture)?;
+        fixture.validate()?;
+        self.q = fixture
+            .q
+            .iter()
+            .copied()
+            .map(<T as From<f32>>::from)
+            .collect();
+        self.qd = fixture
+            .qd
+            .iter()
+            .copied()
+            .map(<T as From<f32>>::from)
+            .collect();
+        self.tau = fixture
+            .tau
+            .iter()
+            .copied()
+            .map(<T as From<f32>>::from)
+            .collect();
+        if self.qdd.len() != fixture.links.len() {
+            self.qdd = vec![T::zero(); fixture.links.len()];
+        }
         Ok(())
     }
 }

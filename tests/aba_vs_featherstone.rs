@@ -314,11 +314,15 @@ fn a09_state_a_b_a_recomputes_all_solver_state() {
     let output_a = spatial6_aba_allocating(&model, &mut state)
         .unwrap()
         .to_vec();
+    state.qdd.fill(31.0);
     state.install_fixture(&fixture_b).unwrap();
+    assert_eq!(state.qdd, vec![31.0; 4]);
     let output_b = spatial6_aba_allocating(&model, &mut state)
         .unwrap()
         .to_vec();
+    state.qdd.fill(-47.0);
     state.install_fixture(&fixture_a).unwrap();
+    assert_eq!(state.qdd, vec![-47.0; 4]);
     let output_a_again = spatial6_aba_allocating(&model, &mut state)
         .unwrap()
         .to_vec();
@@ -364,6 +368,18 @@ fn a10_invalid_inputs_are_rejected_without_committing_partial_qdd() {
         aba::spatial6_solver::AbaBenchReason::NonFinite
     );
     assert_eq!(state.qdd, vec![17.0; 2]);
+
+    state.q[0] = fixture.q[0];
+    state.qdd.fill(29.0);
+    state.tau[0] = f32::MAX;
+    let error = spatial6_aba_allocating(&model, &mut state).unwrap_err();
+    assert_eq!(error.phase, "pass3");
+    assert_eq!(error.joint, Some(0));
+    assert_eq!(
+        error.reason,
+        aba::spatial6_solver::AbaBenchReason::NonFinite
+    );
+    assert_eq!(state.qdd, vec![0.0; 2]);
 
     assert_eq!(
         Fixture::try_new(
