@@ -10,10 +10,9 @@
 //! chain lengths, so the two show up side by side under
 //! `target/criterion/rnea_vs_featherstone`.
 //!
-//! Only RNEA is compared, not `featherstone`'s ABA/CRBA: spatial6 has no
-//! exported, chain-scaling forward-dynamics or mass-matrix algorithm to put
-//! up against them (its articulated-body-inertia math is only a local,
-//! non-exported sketch in `examples/articulated_inertia_builtin.rs`).
+//! Only RNEA is compared. spatial6 exports articulated-body inertia primitives,
+//! but no complete chain-scaling forward-dynamics or mass-matrix algorithm is
+//! exported for comparison with `featherstone`'s ABA/CRBA implementations.
 //!
 //! This is a per-iteration wall-clock comparison, not a numerical-agreement
 //! check: the two use unrelated implementations (and `featherstone` runs in

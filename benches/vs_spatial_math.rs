@@ -12,9 +12,9 @@
 //! the two crates use unrelated rotation and inertia storage layouts.
 //!
 //! `spatial-math` also exposes `ArticulatedBodyInertia`, which isn't compared
-//! here: spatial6 only models rigid-body inertia (`RigidBodyInertia`), not
-//! articulated-body inertia (see `examples/articulated_inertia_builtin.rs`),
-//! so there is no equivalent spatial6 operation to put beside it.
+//! here because this benchmark is scoped to transform and rigid-body inertia
+//! operations. A separate articulated-body workload would need to be defined
+//! before adding that comparison.
 
 use std::hint::black_box;
 
