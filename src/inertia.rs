@@ -566,6 +566,27 @@ where
     T: SpatialScalar,
     R: SpatialRepresentation<T>,
 {
+    #[allow(clippy::needless_range_loop)]
+    fn try_from_derived_symmetric_array(matrix: [[T; 6]; 6]) -> Result<Self, InertiaError> {
+        if !matrix_is_finite(&matrix) {
+            return Err(InertiaError::NonFinite);
+        }
+
+        let mut symmetric = matrix;
+        for row in 0..6 {
+            for column in (row + 1)..6 {
+                let value = safe_average(matrix[row][column], matrix[column][row]);
+                symmetric[row][column] = value;
+                symmetric[column][row] = value;
+            }
+        }
+
+        Ok(Self {
+            packed: pack_upper_symmetric_matrix::<T, 6, 21>(&symmetric),
+            representation: PhantomData,
+        })
+    }
+
     /// Validates and creates an articulated-body inertia from a six-by-six
     /// spatial matrix. All entries must be finite and every off-diagonal pair
     /// must agree within `64 * T::epsilon() * max(1, |a|, |b|)`.
@@ -678,25 +699,7 @@ where
 
         let transformed = R::matrix6_mul(&left, &R::matrix6_transpose(&force));
         let transformed_array = R::matrix6_to_array(&transformed);
-        if !matrix_is_finite(&transformed_array) {
-            return Err(InertiaError::NonFinite);
-        }
-
-        let mut symmetric = transformed_array;
-        for row in 0..6 {
-            for column in (row + 1)..6 {
-                let value = safe_average(
-                    transformed_array[row][column],
-                    transformed_array[column][row],
-                );
-                symmetric[row][column] = value;
-                symmetric[column][row] = value;
-            }
-        }
-        Ok(Self {
-            packed: pack_upper_symmetric_matrix::<T, 6, 21>(&symmetric),
-            representation: PhantomData,
-        })
+        Self::try_from_derived_symmetric_array(transformed_array)
     }
 }
 
@@ -708,7 +711,8 @@ where
     type Error = InertiaError;
 
     fn try_from(rigid: &RigidBodyInertia<T, R>) -> Result<Self, Self::Error> {
-        Self::try_from_matrix(rigid.matrix())
+        let matrix = R::matrix6_to_array(&rigid.matrix());
+        Self::try_from_derived_symmetric_array(matrix)
     }
 }
 

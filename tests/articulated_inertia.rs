@@ -588,6 +588,93 @@ mod backend_matrix {
         );
     }
 
+    fn rigid_conversion_cancellation<T, R>(y: f64)
+    where
+        T: SpatialScalar,
+        R: SpatialRepresentation<T>,
+    {
+        let mass = scalar::<T>(1.1);
+        let x = scalar::<T>(10.1);
+        let y = scalar::<T>(y);
+        let zero = T::zero();
+        let off = (mass * x) * y;
+        let rigid = RigidBodyInertia::<T, R>::try_new(
+            mass,
+            R::vector3_from_array([x, y, zero]),
+            R::matrix3_from_array([
+                [scalar(1000.0), off, zero],
+                [off, scalar(1000.0), zero],
+                [zero, zero, scalar(1000.0)],
+            ]),
+        )
+        .unwrap();
+        let raw = matrix_array::<T, R>(&rigid.matrix());
+        let articulated = ArticulatedBodyInertia::try_from(&rigid).unwrap();
+        let converted = abi_matrix(&articulated);
+
+        assert!(converted.iter().flatten().all(|value| value.is_finite()));
+        assert_strictly_symmetric(&articulated);
+        for row in 0..6 {
+            assert_eq!(converted[row][row], raw[row][row]);
+            for column in (row + 1)..6 {
+                let expected = (raw[row][column] + raw[column][row]) / (T::one() + T::one());
+                assert_eq!(converted[row][column], expected);
+                assert_eq!(converted[column][row], expected);
+            }
+        }
+
+        let cross_abs = [
+            [zero, zero, y.abs()],
+            [zero, zero, x.abs()],
+            [y.abs(), x.abs(), zero],
+        ];
+        let mass_cross_abs = cross_abs.map(|row| row.map(|value| mass.abs() * value));
+        let center_product_abs: [[T; 3]; 3] = std::array::from_fn(|row| {
+            std::array::from_fn(|column| {
+                (0..3).fold(zero, |sum, index| {
+                    sum + mass_cross_abs[row][index] * cross_abs[index][column]
+                })
+            })
+        });
+        let center_inertia_abs = [
+            [scalar(1000.0), off.abs(), zero],
+            [off.abs(), scalar(1000.0), zero],
+            [zero, zero, scalar(1000.0)],
+        ];
+        let mut scale_matrix = [[zero; 6]; 6];
+        for row in 0..3 {
+            for column in 0..3 {
+                scale_matrix[row][column] =
+                    center_inertia_abs[row][column] + center_product_abs[row][column];
+                scale_matrix[row][column + 3] = mass_cross_abs[row][column];
+                scale_matrix[row + 3][column] = mass_cross_abs[column][row];
+                scale_matrix[row + 3][column + 3] = if row == column { mass.abs() } else { zero };
+            }
+        }
+
+        let probes = [
+            [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+            [0.3, -0.8, 1.1, 2.0, -1.5, 0.4],
+        ];
+        for probe in probes {
+            let motion = vector::<T, R>(probe);
+            let actual = articulated.apply(&motion).to_array();
+            let expected = rigid.apply(&motion).to_array();
+            let values = probe.map(scalar::<T>);
+            for row in 0..6 {
+                let scale = (0..6).fold(zero, |sum, column| {
+                    sum + scale_matrix[row][column] * values[column].abs()
+                });
+                let tolerance = scalar::<T>(256.0) * T::epsilon() * scale.max(T::one());
+                assert!(
+                    (actual[row] - expected[row]).abs() <= tolerance,
+                    "row {row}: {actual:?} != {expected:?} within {tolerance:?}"
+                );
+            }
+        }
+    }
+
     fn combined<T, R>(absolute: f64, relative: f64)
     where
         T: SpatialScalar,
@@ -1078,6 +1165,16 @@ mod backend_matrix {
                 #[test]
                 fn rigid_conversion_f32() {
                     super::rigid_conversion::<f32, $backend>(1.0e-5, 1.0e-5);
+                }
+
+                #[test]
+                fn rigid_conversion_cancellation_f64() {
+                    super::rigid_conversion_cancellation::<f64, $backend>(13.7);
+                }
+
+                #[test]
+                fn rigid_conversion_cancellation_f32() {
+                    super::rigid_conversion_cancellation::<f32, $backend>(13.3);
                 }
 
                 #[test]

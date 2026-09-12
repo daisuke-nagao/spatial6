@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The articulated-inertia examples now demonstrate eliminating joint
   acceleration under a specified joint force through the public API.
 
+### Fixed
+
+- Rigid-body inertia conversion no longer rejects valid derived matrices when
+  floating-point roundoff introduces a small asymmetry.
+
 ## [1.0.0] - 2026-09-09
 
 ### Added
