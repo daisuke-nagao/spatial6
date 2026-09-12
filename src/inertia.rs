@@ -673,6 +673,13 @@ where
     /// not certify or preserve that property. Finiteness validation does not
     /// certify numerical accuracy.
     ///
+    /// Each term is evaluated as `(alpha * u[row]) * u[column]`. With extreme
+    /// component scales, this first product can underflow even when the
+    /// mathematical final component is representable. Finite inputs and
+    /// results, and the finiteness checks here, do not detect underflow,
+    /// cancellation, or loss of small components and do not guarantee
+    /// numerical accuracy.
+    ///
     /// # Errors
     ///
     /// Returns [`InertiaError::NonFinite`] if `alpha` or `u` is non-finite, or
