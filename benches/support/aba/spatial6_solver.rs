@@ -199,6 +199,7 @@ where
         })
     }
 
+    #[allow(dead_code)]
     pub fn install_fixture(&mut self, fixture: &Fixture) -> Result<(), FixtureError> {
         *self = Self::from_fixture(fixture)?;
         Ok(())

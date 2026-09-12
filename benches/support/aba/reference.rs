@@ -290,6 +290,7 @@ pub fn solve_reference(fixture: &Fixture) -> Result<ReferenceResult, ReferenceEr
             message: "mass matrix is not symmetric",
         });
     }
+    #[allow(clippy::needless_range_loop)]
     for row in 0..n {
         for column in (row + 1)..n {
             let value = (mass_matrix[row][column] + mass_matrix[column][row]) * 0.5;
@@ -343,6 +344,7 @@ pub fn solve_reference(fixture: &Fixture) -> Result<ReferenceResult, ReferenceEr
     })
 }
 
+#[allow(dead_code)]
 pub fn rnea_f64(
     fixture: &Fixture,
     q: &[f32],

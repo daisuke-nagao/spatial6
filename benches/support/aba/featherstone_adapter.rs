@@ -29,6 +29,7 @@ pub fn featherstone_inertia(link: &LinkSpec) -> FsInertia {
     )
 }
 
+#[allow(dead_code)]
 pub fn spatial6_tree_transform(link: &LinkSpec) -> S6Transform<f32> {
     S6Transform::new(link.tree_rotation, link.parent_offset)
 }
@@ -51,6 +52,7 @@ pub fn spatial6_joint_transform<T: SpatialScalar>(axis: Axis, q: T) -> S6Transfo
     S6Transform::new(rotation, [zero; 3])
 }
 
+#[allow(dead_code)]
 pub fn featherstone_joint_transform(axis: Axis, q: f32) -> FsTransform {
     GenJoint::Revolute {
         axis: fs_vector(axis.as_array()),
@@ -58,14 +60,17 @@ pub fn featherstone_joint_transform(axis: Axis, q: f32) -> FsTransform {
     .transform(&[q])
 }
 
+#[allow(dead_code)]
 pub fn spatial6_transform(link: &LinkSpec, q: f32) -> S6Transform<f32> {
     spatial6_tree_transform(link).then(&spatial6_joint_transform(link.axis, q))
 }
 
+#[allow(dead_code)]
 pub fn featherstone_transform(link: &LinkSpec, q: f32) -> FsTransform {
     featherstone_joint_transform(link.axis, q).compose(&featherstone_tree_transform(link))
 }
 
+#[allow(dead_code)]
 pub fn spatial6_base_acceleration(gravity: [f32; 3]) -> MotionVector<f32> {
     MotionVector::new([0.0; 3], gravity.map(|value| -value))
 }
