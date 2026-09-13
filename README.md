@@ -5,7 +5,7 @@ dynamics. Spatial coordinates store angular components before linear components.
 
 ```toml
 [dependencies]
-spatial6 = "1.0"
+spatial6 = "1.1"
 ```
 
 The crate provides `MotionVector`, `ForceVector`, `SpatialTransform`,
