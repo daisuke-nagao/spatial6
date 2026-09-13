@@ -65,9 +65,10 @@ let (q_local_to_reference, p_in_reference) = transform.to_pose_parts();
 let restored = SpatialTransform::from_pose_parts(q_local_to_reference, p_in_reference);
 ```
 
-`ArticulatedBodyInertia` represents the symmetric inertia operator produced by
-eliminating a joint acceleration under a specified joint force. The core
-reduction uses only backend-agnostic public operations:
+`ArticulatedBodyInertia` represents the current articulated inertia, including
+the reduced symmetric operator produced by eliminating a joint acceleration
+under a specified joint force. The core reduction uses only backend-agnostic
+public operations:
 
 ```rust,ignore
 let full = ArticulatedBodyInertia::try_from(&rigid)?;
@@ -78,6 +79,13 @@ assert!(d.is_finite() && d > 0.0);
 let reduced = full.try_rank_one_updated(-1.0 / d, &u)?;
 let child_in_parent = reduced.try_transformed(&child_to_parent)?;
 let accumulated = parent.try_combined(&child_in_parent)?;
+```
+
+The `aba_builtin` example is a minimal fixed-base serial-chain ABA
+forward-dynamics walkthrough using the public `ArticulatedBodyInertia` API.
+
+```sh
+cargo run --example aba_builtin --no-default-features --features builtin
 ```
 
 ## Contributing

@@ -53,6 +53,10 @@ name = "articulated_inertia_builtin"
 required-features = ["builtin"]
 
 [[example]]
+name = "aba_builtin"
+required-features = ["builtin"]
+
+[[example]]
 name = "backend_builtin"
 required-features = ["builtin"]
 
