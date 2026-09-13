@@ -10,35 +10,26 @@
 //! chain lengths, so the two show up side by side under
 //! `target/criterion/rnea_vs_featherstone`.
 //!
-//! The legacy RNEA comparison remains unchanged. A separate
-//! `aba_vs_featherstone_f32` group compares benchmark-local allocating ABA
-//! implementations on the same `f32` fixtures after an untimed numerical
-//! preflight.
+//! Only RNEA is compared. spatial6 exports articulated-body inertia primitives,
+//! but no complete chain-scaling forward-dynamics or mass-matrix algorithm is
+//! exported for comparison with `featherstone`'s ABA/CRBA implementations.
 //!
-//! The RNEA group is a per-iteration wall-clock comparison, not a
-//! numerical-agreement check: the two use unrelated implementations (and
-//! `featherstone` runs in `f32`, spatial6 there in `f64`), so results are not
-//! expected to match bit for bit. Each RNEA joint's transform is recomputed
-//! from its stored angle on every call on both sides (rather than cached in
-//! the chain), matching
+//! This is a per-iteration wall-clock comparison, not a numerical-agreement
+//! check: the two use unrelated implementations (and `featherstone` runs in
+//! `f32`, spatial6 here in `f64`), so results are not expected to match bit
+//! for bit. Each joint's transform is recomputed from its stored angle on
+//! every call on both sides (rather than cached in the chain), matching
 //! `featherstone`'s own `rnea_inverse_dynamics`, which derives every joint's
 //! transform from its current position `q` internally -- so neither side
 //! amortizes that cost away into one-time setup.
 
 use std::hint::black_box;
 
-#[path = "support/aba/mod.rs"]
-mod aba;
-
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
 use featherstone::prelude::*;
 use nalgebra_featherstone::{Matrix3, Vector3};
 
-use aba::featherstone_adapter::featherstone_body;
-use aba::fixture::{ChainFamily, Fixture};
-use aba::reference::preflight_all;
-use aba::spatial6_solver::{Spatial6Model, Spatial6State, spatial6_aba_allocating};
 use spatial6::{
     ForceVector, MotionVector, SpatialInertia as S6Inertia, SpatialTransform as S6Transform,
 };
@@ -178,61 +169,5 @@ fn rnea_vs_featherstone(c: &mut Criterion) {
     group.finish();
 }
 
-fn aba_vs_featherstone_f32(c: &mut Criterion) {
-    if let Err(error) = preflight_all() {
-        panic!("aba_vs_featherstone_f32 preflight failed: {error}");
-    }
-
-    let mut group = c.benchmark_group("aba_vs_featherstone_f32");
-    for family in [ChainFamily::PlanarZ, ChainFamily::SpatialXyz] {
-        for &n in &aba::fixture::CHAIN_LENGTHS {
-            let fixture = Fixture::canonical(family, n).unwrap_or_else(|error| {
-                panic!("{}/{} fixture failed: {error}", family.as_str(), n)
-            });
-            let model = Spatial6Model::<f32>::from_fixture(&fixture).unwrap_or_else(|error| {
-                panic!("{}/{} spatial6 model failed: {error}", family.as_str(), n)
-            });
-            let mut state = Spatial6State::<f32>::from_fixture(&fixture).unwrap_or_else(|error| {
-                panic!("{}/{} spatial6 state failed: {error}", family.as_str(), n)
-            });
-            let mut body = featherstone_body(&fixture).unwrap_or_else(|error| {
-                panic!(
-                    "{}/{} featherstone body failed: {error}",
-                    family.as_str(),
-                    n
-                )
-            });
-            let family_name = family.as_str();
-
-            group.bench_with_input(
-                BenchmarkId::new(format!("spatial6_builtin_scalar_alloc/{family_name}"), n),
-                &n,
-                |benchmark, _| {
-                    benchmark.iter(|| {
-                        let output = spatial6_aba_allocating(&model, &mut state)
-                            .unwrap_or_else(|error| panic!("spatial6 ABA failed: {error}"));
-                        black_box(output);
-                    });
-                },
-            );
-            group.bench_with_input(
-                BenchmarkId::new(format!("featherstone_0_1_0_alloc/{family_name}"), n),
-                &n,
-                |benchmark, _| {
-                    benchmark.iter(|| {
-                        let output = aba_forward_dynamics(&mut body);
-                        black_box(output);
-                    });
-                },
-            );
-        }
-    }
-    group.finish();
-}
-
-criterion_group!(
-    vs_featherstone,
-    rnea_vs_featherstone,
-    aba_vs_featherstone_f32
-);
+criterion_group!(vs_featherstone, rnea_vs_featherstone);
 criterion_main!(vs_featherstone);

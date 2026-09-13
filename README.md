@@ -65,9 +65,10 @@ let (q_local_to_reference, p_in_reference) = transform.to_pose_parts();
 let restored = SpatialTransform::from_pose_parts(q_local_to_reference, p_in_reference);
 ```
 
-`ArticulatedBodyInertia` represents the symmetric inertia operator produced by
-eliminating a joint acceleration under a specified joint force. The core
-reduction uses only backend-agnostic public operations:
+`ArticulatedBodyInertia` represents the current articulated inertia, including
+the reduced symmetric operator produced by eliminating a joint acceleration
+under a specified joint force. The core reduction uses only backend-agnostic
+public operations:
 
 ```rust,ignore
 let full = ArticulatedBodyInertia::try_from(&rigid)?;
@@ -80,44 +81,12 @@ let child_in_parent = reduced.try_transformed(&child_to_parent)?;
 let accumulated = parent.try_combined(&child_in_parent)?;
 ```
 
-## ABA benchmark comparison
-
-The `vs_featherstone` benchmark includes `aba_vs_featherstone_f32`, a
-benchmark-local forward-dynamics comparison between spatial6's Builtin `f32`
-implementation and the published `featherstone` `0.1.0` implementation. Its
-fixed-base serial fixtures use one scalar revolute DoF per link in `planar_z`
-and `spatial_xyz` families, with 2, 4, 8, 16, and 32 links. The spatial6 solver
-is benchmark/test support only; it uses checked `ArticulatedBodyInertia`
-operations and dynamic `Vec` storage.
-
-Each timed call includes q-dependent transform construction, temporary solver
-workspace allocation, and all three ABA passes. Both implementations allocate
-temporary solver workspace per call. Model construction, input installation,
-correctness preflight, and diagnostics are outside the timed closure.
-
-Use the following commands to compile, smoke-test, or run the full group:
+The `aba_builtin` example is a minimal fixed-base serial-chain ABA
+forward-dynamics walkthrough using the public `ArticulatedBodyInertia` API.
 
 ```sh
-# Compile the benchmark target
-cargo bench --bench vs_featherstone --no-run
-
-# Run the short execution smoke test
-cargo bench --bench vs_featherstone -- aba_vs_featherstone_f32 --test
-
-# Run the full Criterion measurement
-cargo bench --bench vs_featherstone -- aba_vs_featherstone_f32
+cargo run --example aba_builtin --no-default-features --features builtin
 ```
-
-The existing `rnea_vs_featherstone` group is a separate legacy workload and
-retains its older spatial6 `f64`/Featherstone `f32` and differing-gravity setup;
-it does not require numerical agreement. Do not compare timings across the two
-groups or treat either group as a whole-crate performance claim.
-
-For reproducible measurements, record the source commit, resolved
-`Cargo.lock` checksums, Rust version, target triple, build profile and
-`RUSTFLAGS`, CPU and OS, dependency features, Criterion configuration, and
-background-load and power conditions. This section specifies the workload and
-claims no timing results.
 
 ## Contributing
 
