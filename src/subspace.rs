@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::{ForceVector, MotionVector, SpatialRepresentation, SpatialScalar};
+use crate::{ForceVector, MotionVector, SpatialRepresentation, SpatialScalar, SpatialTransform};
 
 #[cfg(feature = "builtin")]
 use crate::Builtin;
@@ -69,6 +69,23 @@ where
     /// Maps a spatial force to generalized force: `S^T f`.
     pub fn generalized_force(&self, force: &ForceVector<T, R>) -> [T; N] {
         std::array::from_fn(|index| self.columns[index].dot(force))
+    }
+
+    /// Maps spatial-force columns to generalized forces: `S^T F`.
+    pub fn generalized_forces<const M: usize>(
+        &self,
+        forces: &[ForceVector<T, R>; M],
+    ) -> [[T; M]; N] {
+        std::array::from_fn(|row| {
+            std::array::from_fn(|column| self.columns[row].dot(&forces[column]))
+        })
+    }
+
+    /// Applies a spatial motion transform to every column: `X S`.
+    pub fn transformed(&self, transform: &SpatialTransform<T, R>) -> Self {
+        Self::from_columns(std::array::from_fn(|index| {
+            transform.transform_motion(&self.columns[index])
+        }))
     }
 }
 
