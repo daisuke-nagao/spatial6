@@ -236,6 +236,12 @@ where
             serde_json::from_str::<MotionSubspace<N, f64, R>>(&json).unwrap(),
             subspace
         );
+
+        let binary = bincode::serialize(&subspace).unwrap();
+        assert_eq!(
+            bincode::deserialize::<MotionSubspace<N, f64, R>>(&binary).unwrap(),
+            subspace
+        );
     }
 
     round_trip(MotionSubspace::<0, f64, R>::from_columns([]));

@@ -110,13 +110,13 @@ where
     where
         S: serde::Serializer,
     {
-        use serde::ser::SerializeSeq;
+        use serde::ser::SerializeTuple;
 
-        let mut sequence = serializer.serialize_seq(Some(N))?;
+        let mut tuple = serializer.serialize_tuple(N)?;
         for column in &self.columns {
-            sequence.serialize_element(column)?;
+            tuple.serialize_element(column)?;
         }
-        sequence.end()
+        tuple.end()
     }
 }
 
