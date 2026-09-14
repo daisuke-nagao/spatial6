@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use spatial6::{
-    ArticulatedBodyInertia, ForceVector, MotionVector, RigidBodyInertia, SpatialRepresentation,
-    SpatialScalar, SpatialTransform,
+    ArticulatedBodyInertia, ForceVector, MotionSubspace, MotionVector, RigidBodyInertia,
+    SpatialRepresentation, SpatialScalar, SpatialTransform,
 };
 
 fn assert_num_traits_float<T: num_traits::Float>() {}
@@ -93,6 +93,9 @@ fn user_defined_representation_drives_the_complete_api() {
 
     assert_eq!(velocity.to_vector(), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     assert_eq!(velocity.dot(&force), 280.0);
+    let subspace = MotionSubspace::from_columns([velocity]);
+    assert_eq!(subspace.apply(&[2.0]), velocity * 2.0);
+    assert_eq!(subspace.generalized_force(&force), [280.0]);
     assert_eq!(
         velocity.cross_force(&force).to_vector(),
         [-18.0, 36.0, -18.0, -12.0, 24.0, -12.0]
@@ -202,6 +205,15 @@ fn user_defined_representation_drives_the_complete_api() {
 #[cfg(feature = "serde")]
 #[test]
 fn custom_representation_abi_serde_has_no_marker_serde_bound() {
+    let subspace = MotionSubspace::from_columns(std::array::from_fn::<_, 33, _>(|index| {
+        MotionVector::<f64, Custom>::from_array([index as f64, 2.0, 3.0, 4.0, 5.0, 6.0])
+    }));
+    let json = serde_json::to_string(&subspace).unwrap();
+    assert_eq!(
+        serde_json::from_str::<MotionSubspace<33, f64, Custom>>(&json).unwrap(),
+        subspace
+    );
+
     let inertia = ArticulatedBodyInertia::<f64, Custom>::try_from_matrix([
         [1.0, 0.2, 0.0, 0.0, 0.0, 0.0],
         [0.2, 2.0, 0.3, 0.0, 0.0, 0.0],
