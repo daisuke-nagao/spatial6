@@ -6,7 +6,8 @@
 
 use nalgebra::{Matrix3, Rotation3, Vector3};
 use spatial6::{
-    ArticulatedBodyInertia, ForceVector, MotionVector, Nalgebra, SpatialInertia, SpatialTransform,
+    ArticulatedBodyInertia, ForceVector, MotionSubspace, MotionVector, Nalgebra, SpatialInertia,
+    SpatialTransform,
 };
 
 fn max_abs_vector(left: [f64; 6], right: [f64; 6]) -> f64 {
@@ -47,17 +48,17 @@ fn main() {
 
     // A prismatic joint has a local-x motion subspace. Eliminating its
     // acceleration while its force is specified gives the ABA rank-one update.
-    let s = MotionVector::<f64, Nalgebra>::new(
+    let s = MotionSubspace::<1, f64, Nalgebra>::from(MotionVector::<f64, Nalgebra>::new(
         Vector3::new(0.0, 0.0, 0.0),
         Vector3::new(1.0, 0.0, 0.0),
-    );
-    let u = full.apply(&s);
-    let d = s.dot(&u);
+    ));
+    let u = full.apply_subspace(&s);
+    let d = s.generalized_force(&u[0])[0];
     assert!(d.is_finite() && d > 0.0);
-    let reduced = full.try_rank_one_updated(-1.0 / d, &u).unwrap();
+    let reduced = full.try_rank_one_updated(-1.0 / d, &u[0]).unwrap();
 
     // The eliminated joint direction has no remaining articulated response.
-    let eliminated_response = reduced.apply(&s);
+    let eliminated_response = reduced.apply_subspace(&s)[0];
     assert!(
         max_abs_vector(
             eliminated_response.to_array(),
