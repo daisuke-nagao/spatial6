@@ -69,6 +69,18 @@ name = "backend_glam"
 required-features = ["glam"]
 
 [[example]]
+name = "motion_subspace_builtin"
+required-features = ["builtin"]
+
+[[example]]
+name = "motion_subspace_nalgebra"
+required-features = ["nalgebra"]
+
+[[example]]
+name = "motion_subspace_glam"
+required-features = ["glam"]
+
+[[example]]
 name = "rnea_nalgebra"
 required-features = ["nalgebra"]
 
