@@ -4,7 +4,8 @@
 
 #[cfg(any(feature = "builtin", feature = "nalgebra", feature = "glam"))]
 use spatial6::{
-    ForceVector, MotionSubspace, MotionVector, SpatialRepresentation, SpatialTransform,
+    ArticulatedBodyInertia, ForceVector, MotionSubspace, MotionVector, RigidBodyInertia,
+    SpatialRepresentation, SpatialTransform,
 };
 
 #[cfg(any(feature = "builtin", feature = "nalgebra", feature = "glam"))]
@@ -118,6 +119,50 @@ where
     assert_eq!(fixed.transformed(&transform).columns(), &[]);
 }
 
+#[cfg(any(feature = "builtin", feature = "nalgebra", feature = "glam"))]
+fn exercise_inertia<R>()
+where
+    R: SpatialRepresentation<f64>,
+{
+    let rigid = RigidBodyInertia::<f64, R>::try_new(
+        2.0,
+        R::vector3_from_array([1.0, 2.0, 3.0]),
+        R::matrix3_from_array([[4.0, 0.2, 0.1], [0.2, 5.0, 0.3], [0.1, 0.3, 6.0]]),
+    )
+    .unwrap();
+    let articulated = ArticulatedBodyInertia::try_from(&rigid).unwrap();
+    let subspace = MotionSubspace::from_columns([
+        MotionVector::<f64, R>::from_array([1.0, 0.0, 1.0, 0.0, 2.0, -1.0]),
+        MotionVector::<f64, R>::from_array([0.0, 1.0, -0.5, 1.0, 0.0, 3.0]),
+    ]);
+
+    let rigid_forces = rigid.apply_subspace(&subspace);
+    let articulated_forces = articulated.apply_subspace(&subspace);
+    for (index, column) in subspace.columns().iter().enumerate() {
+        assert_eq!(rigid_forces[index], rigid.apply(column));
+        assert_eq!(articulated_forces[index], articulated.apply(column));
+    }
+
+    let joint_inertia = subspace.generalized_forces(&rigid_forces);
+    assert!((joint_inertia[0][1] - joint_inertia[1][0]).abs() <= 1.0e-12);
+
+    let coefficients = [1.5, -0.25];
+    let joint_energy = coefficients[0]
+        * (joint_inertia[0][0] * coefficients[0] + joint_inertia[0][1] * coefficients[1])
+        + coefficients[1]
+            * (joint_inertia[1][0] * coefficients[0] + joint_inertia[1][1] * coefficients[1]);
+    let motion = subspace.apply(&coefficients);
+    let spatial_energy = motion.dot(&rigid.apply(&motion));
+    assert!((joint_energy - spatial_energy).abs() <= 1.0e-12);
+
+    let fixed = MotionSubspace::<0, f64, R>::from_columns([]);
+    assert_eq!(rigid.apply_subspace(&fixed), [] as [ForceVector<f64, R>; 0]);
+    assert_eq!(
+        articulated.apply_subspace(&fixed),
+        [] as [ForceVector<f64, R>; 0]
+    );
+}
+
 #[cfg(feature = "builtin")]
 #[test]
 fn builtin_core_operations_preserve_the_subspace_contract() {
@@ -152,6 +197,24 @@ fn nalgebra_multi_column_and_transform_operations_preserve_the_subspace_contract
 #[test]
 fn glam_multi_column_and_transform_operations_preserve_the_subspace_contract() {
     exercise_transforms::<spatial6::Glam>();
+}
+
+#[cfg(feature = "builtin")]
+#[test]
+fn builtin_inertia_operations_preserve_the_subspace_contract() {
+    exercise_inertia::<spatial6::Builtin>();
+}
+
+#[cfg(feature = "nalgebra")]
+#[test]
+fn nalgebra_inertia_operations_preserve_the_subspace_contract() {
+    exercise_inertia::<spatial6::Nalgebra>();
+}
+
+#[cfg(feature = "glam")]
+#[test]
+fn glam_inertia_operations_preserve_the_subspace_contract() {
+    exercise_inertia::<spatial6::Glam>();
 }
 
 #[cfg(all(
