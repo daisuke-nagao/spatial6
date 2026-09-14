@@ -8,8 +8,8 @@ dynamics. Spatial coordinates store angular components before linear components.
 spatial6 = "1.1"
 ```
 
-The crate provides `MotionVector`, `ForceVector`, `SpatialTransform`,
-`RigidBodyInertia`, and `ArticulatedBodyInertia`.
+The crate provides `MotionVector`, `ForceVector`, `MotionSubspace`,
+`SpatialTransform`, `RigidBodyInertia`, and `ArticulatedBodyInertia`.
 
 | Feature | Backend |
 | --- | --- |
@@ -37,6 +37,10 @@ never the answer:
 cargo run --example backend_builtin --no-default-features --features builtin
 cargo run --example backend_nalgebra --no-default-features --features nalgebra
 cargo run --example backend_glam --no-default-features --features glam
+
+cargo run --example motion_subspace_builtin --no-default-features --features builtin
+cargo run --example motion_subspace_nalgebra --no-default-features --features nalgebra
+cargo run --example motion_subspace_glam --no-default-features --features glam
 
 cargo run --example rnea_builtin --no-default-features --features builtin
 cargo run --example rnea_nalgebra --no-default-features --features nalgebra
