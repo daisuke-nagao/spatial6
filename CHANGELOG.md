@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subspaces.
 - Motion-subspace application for rigid-body and articulated-body inertias.
 - Backend-specific motion-subspace examples covering joint-space operations.
+- Motion-subspace primitive benchmarks for one, three, and six generalized
+  velocities across all built-in backends.
 
 ## [1.1.0] - 2026-09-14
 
