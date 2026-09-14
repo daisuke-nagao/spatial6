@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `MotionSubspace<const N>` with fixed-size basis columns, generalized-velocity
+  application, generalized-force mapping, zero-DoF support, and serde support.
+
 ## [1.1.0] - 2026-09-14
 
 ### Added

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Backend-agnostic spatial vectors, transforms, and inertias.
+//! Backend-agnostic spatial vectors, motion subspaces, transforms, and inertias.
 //!
 //! The default `builtin` feature uses fixed Rust arrays. Disable default features
 //! to provide your own [`SpatialRepresentation`], or enable `nalgebra` and/or
@@ -23,6 +23,10 @@ pub use representation::{SpatialRepresentation, SpatialScalar};
 mod vector;
 
 pub use vector::{ForceVector, MotionVector, SpatialCoordinates, SpatialMatrix};
+
+mod subspace;
+
+pub use subspace::MotionSubspace;
 
 mod transform;
 
