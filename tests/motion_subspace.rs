@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(any(feature = "builtin", feature = "nalgebra", feature = "glam"))]
-use spatial6::{ForceVector, MotionSubspace, MotionVector, SpatialRepresentation};
+use spatial6::{
+    ForceVector, MotionSubspace, MotionVector, SpatialRepresentation, SpatialTransform,
+};
 
 #[cfg(any(feature = "builtin", feature = "nalgebra", feature = "glam"))]
 fn assert_motion_close<R>(actual: &MotionVector<f64, R>, expected: &MotionVector<f64, R>)
@@ -70,6 +72,52 @@ where
     assert_send_sync::<MotionSubspace<2, f64, R>>();
 }
 
+#[cfg(any(feature = "builtin", feature = "nalgebra", feature = "glam"))]
+fn exercise_transforms<R>()
+where
+    R: SpatialRepresentation<f64>,
+{
+    let subspace = MotionSubspace::from_columns([
+        MotionVector::<f64, R>::from_array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        MotionVector::<f64, R>::from_array([-2.0, 1.0, 4.0, 0.5, -3.0, 2.0]),
+    ]);
+    let forces = [
+        ForceVector::<f64, R>::from_array([3.0, -1.0, 2.0, 4.0, 0.5, -2.0]),
+        ForceVector::<f64, R>::from_array([-2.0, 5.0, 1.0, 0.0, 3.0, 4.0]),
+    ];
+    let generalized = subspace.generalized_forces(&forces);
+    for (row, generalized_row) in generalized.iter().enumerate() {
+        for (column, actual) in generalized_row.iter().enumerate() {
+            assert!((*actual - subspace.columns()[row].dot(&forces[column])).abs() <= 1.0e-12);
+        }
+    }
+    assert_eq!(subspace.generalized_forces(&[]), [[] as [f64; 0]; 2]);
+
+    let transform = SpatialTransform::<f64, R>::new(
+        R::rotation3_from_array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
+        R::vector3_from_array([3.0, 5.0, 7.0]),
+    );
+    let transformed = subspace.transformed(&transform);
+    let coefficients = [1.5, -0.25];
+    assert_motion_close(
+        &transformed.apply(&coefficients),
+        &transform.transform_motion(&subspace.apply(&coefficients)),
+    );
+    let transformed_force = transform.transform_force(&forces[0]);
+    let original_generalized = subspace.generalized_force(&forces[0]);
+    let transformed_generalized = transformed.generalized_force(&transformed_force);
+    for (actual, expected) in transformed_generalized
+        .into_iter()
+        .zip(original_generalized)
+    {
+        assert!((actual - expected).abs() <= 1.0e-12);
+    }
+
+    let fixed = MotionSubspace::<0, f64, R>::from_columns([]);
+    assert_eq!(fixed.generalized_forces(&forces), [] as [[f64; 2]; 0]);
+    assert_eq!(fixed.transformed(&transform).columns(), &[]);
+}
+
 #[cfg(feature = "builtin")]
 #[test]
 fn builtin_core_operations_preserve_the_subspace_contract() {
@@ -86,6 +134,24 @@ fn nalgebra_core_operations_preserve_the_subspace_contract() {
 #[test]
 fn glam_core_operations_preserve_the_subspace_contract() {
     exercise_core::<spatial6::Glam>();
+}
+
+#[cfg(feature = "builtin")]
+#[test]
+fn builtin_multi_column_and_transform_operations_preserve_the_subspace_contract() {
+    exercise_transforms::<spatial6::Builtin>();
+}
+
+#[cfg(feature = "nalgebra")]
+#[test]
+fn nalgebra_multi_column_and_transform_operations_preserve_the_subspace_contract() {
+    exercise_transforms::<spatial6::Nalgebra>();
+}
+
+#[cfg(feature = "glam")]
+#[test]
+fn glam_multi_column_and_transform_operations_preserve_the_subspace_contract() {
+    exercise_transforms::<spatial6::Glam>();
 }
 
 #[cfg(all(
