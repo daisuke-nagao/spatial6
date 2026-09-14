@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   application, generalized-force mapping, zero-DoF support, and serde support.
 - Multi-column generalized-force mapping and spatial transformation of motion
   subspaces.
+- Motion-subspace application for rigid-body and articulated-body inertias.
 
 ## [1.1.0] - 2026-09-14
 

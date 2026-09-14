@@ -9,6 +9,7 @@ use std::ops::Mul;
 #[cfg(feature = "builtin")]
 use crate::Builtin;
 use crate::math::matrix_is_finite;
+use crate::subspace::MotionSubspace;
 use crate::transform::SpatialTransform;
 use crate::vector::{ForceVector, MotionVector, SpatialMatrix};
 use crate::{SpatialRepresentation, SpatialScalar};
@@ -412,6 +413,18 @@ where
         ForceVector::new(moment, linear)
     }
 
+    /// Applies this inertia to every motion-subspace column: `I S`.
+    ///
+    /// The subspace columns must use the same frame as this inertia; the
+    /// returned force columns are expressed in that frame. This method performs
+    /// no finiteness validation, so non-finite values may propagate.
+    pub fn apply_subspace<const N: usize>(
+        &self,
+        subspace: &MotionSubspace<N, T, R>,
+    ) -> [ForceVector<T, R>; N] {
+        std::array::from_fn(|index| self.apply(&subspace.columns()[index]))
+    }
+
     /// Moves this inertia from `transform`'s source frame, which must be this
     /// frame, to the destination frame.
     ///
@@ -640,6 +653,22 @@ where
         let matrix = self.matrix();
         let motion = motion.to_vector();
         ForceVector::from_vector(R::matrix6_vector_mul(&matrix, &motion))
+    }
+
+    /// Applies this inertia to every motion-subspace column: `I_A S`.
+    ///
+    /// The subspace columns must use the same frame as this inertia; the
+    /// returned force columns are expressed in that frame. This method performs
+    /// no finiteness validation, so non-finite values may propagate.
+    pub fn apply_subspace<const N: usize>(
+        &self,
+        subspace: &MotionSubspace<N, T, R>,
+    ) -> [ForceVector<T, R>; N] {
+        let matrix = self.matrix();
+        std::array::from_fn(|index| {
+            let motion = subspace.columns()[index].to_vector();
+            ForceVector::from_vector(R::matrix6_vector_mul(&matrix, &motion))
+        })
     }
 
     /// Adds the corresponding stored components of another articulated-body
