@@ -11,7 +11,8 @@
 //! each joint acceleration.
 
 use spatial6::{
-    ArticulatedBodyInertia, Builtin, ForceVector, MotionVector, SpatialInertia, SpatialTransform,
+    ArticulatedBodyInertia, Builtin, ForceVector, MotionSubspace, MotionVector, SpatialInertia,
+    SpatialTransform,
 };
 
 const NUM_LINKS: usize = 3;
@@ -22,7 +23,7 @@ fn main() {
     let tau = [1.0, -0.5, 0.25];
     let gravity = [0.0, -9.81, 0.0];
 
-    let s = MotionVector::<f64>::new([0.0, 0.0, 1.0], [0.0, 0.0, 0.0]);
+    let s = MotionSubspace::<1>::from(MotionVector::<f64>::new([0.0, 0.0, 1.0], [0.0, 0.0, 0.0]));
     let rigid_inertia: [SpatialInertia<f64>; NUM_LINKS] = std::array::from_fn(|_| {
         SpatialInertia::<f64>::try_new(
             1.0,
@@ -57,7 +58,7 @@ fn main() {
 
     // Pass 1: kinematics and velocity-dependent bias forces.
     for i in 0..NUM_LINKS {
-        let joint_velocity = s * qd[i];
+        let joint_velocity = s.apply(&[qd[i]]);
         let parent_velocity = if i == 0 {
             MotionVector::zeros()
         } else {
@@ -71,9 +72,9 @@ fn main() {
 
     // Pass 2: articulated-body inertia and bias-force propagation.
     for i in (0..NUM_LINKS).rev() {
-        u_force[i] = articulated_inertia[i].apply(&s);
-        d[i] = s.dot(&u_force[i]);
-        u_scalar[i] = tau[i] - s.dot(&bias_force[i]);
+        u_force[i] = articulated_inertia[i].apply_subspace(&s)[0];
+        d[i] = s.generalized_force(&u_force[i])[0];
+        u_scalar[i] = tau[i] - s.generalized_force(&bias_force[i])[0];
         assert!(d[i].is_finite() && d[i] > 0.0);
 
         if i > 0 {
@@ -105,7 +106,7 @@ fn main() {
         let acceleration_before_joint =
             x_up[i].transform_motion(&parent_acceleration) + bias_acceleration[i];
         qdd[i] = (u_scalar[i] - acceleration_before_joint.dot(&u_force[i])) / d[i];
-        acceleration[i] = acceleration_before_joint + s * qdd[i];
+        acceleration[i] = acceleration_before_joint + s.apply(&[qdd[i]]);
     }
 
     assert!(qdd.iter().all(|value| value.is_finite()));
