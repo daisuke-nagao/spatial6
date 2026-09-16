@@ -237,9 +237,14 @@ where
             subspace
         );
 
-        let binary = bincode::serialize(&subspace).unwrap();
+        let binary = bincode::serde::encode_to_vec(subspace, bincode::config::standard()).unwrap();
         assert_eq!(
-            bincode::deserialize::<MotionSubspace<N, f64, R>>(&binary).unwrap(),
+            bincode::serde::decode_from_slice::<MotionSubspace<N, f64, R>, _>(
+                &binary,
+                bincode::config::standard(),
+            )
+            .unwrap()
+            .0,
             subspace
         );
     }
