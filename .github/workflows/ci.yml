@@ -40,6 +40,7 @@ jobs:
           cargo +stable test --no-default-features --features nalgebra
           cargo +stable test --no-default-features --features glam
           cargo +stable test --features serde
+          cargo +stable test --no-default-features --features serde
           cargo +stable test --all-features
       - name: Documentation
         env:

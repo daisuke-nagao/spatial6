@@ -16,6 +16,18 @@ macro_rules! define_motion_subspace {
         /// columns, and any force, inertia, or transform used with them, must be
         /// expressed in consistent frames.
         ///
+        /// This type supplies multi-DoF motion and joint-space projection
+        /// primitives, including `S x` and `S^T f`; together with an
+        /// articulated-body inertia, `I_A S` supplies `U`. It does not solve or
+        /// invert the joint-space matrix `D = S^T I_A S`, nor apply the complete
+        /// multi-DoF reduction `I_A - U D^{-1} U^T`.
+        ///
+        /// `N > 6` is allowed for redundant or purely algebraic representations.
+        /// Because spatial motion has dimension six, `S` has rank at most six, so the
+        /// projected inertia `D` is necessarily singular for `N > 6`.
+        /// Algorithms requiring an invertible projected inertia must impose and
+        /// validate suitable rank and conditioning constraints for any `N`.
+        ///
         /// The dual operation preserves virtual power:
         /// `(S x) · f = x^T (S^T f)`.
         ///
@@ -38,7 +50,7 @@ where
     T: SpatialScalar,
     R: SpatialRepresentation<T>,
 {
-    /// Creates a motion subspace from its basis-motion columns.
+    /// Creates a motion subspace from its motion columns.
     ///
     /// Algorithms that require `N` independent generalized velocities assume
     /// that the supplied columns are linearly independent.
@@ -46,7 +58,7 @@ where
         Self { columns }
     }
 
-    /// Returns the basis-motion columns.
+    /// Returns the motion columns.
     pub fn columns(&self) -> &[MotionVector<T, R>; N] {
         &self.columns
     }

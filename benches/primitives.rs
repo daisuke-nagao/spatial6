@@ -14,8 +14,8 @@ use std::hint::black_box;
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use spatial6::{
-    ForceVector, MotionSubspace, MotionVector, RigidBodyInertia, SpatialRepresentation,
-    SpatialTransform,
+    ArticulatedBodyInertia, ForceVector, MotionSubspace, MotionVector, RigidBodyInertia,
+    SpatialRepresentation, SpatialTransform,
 };
 
 fn sample_transform<R: SpatialRepresentation<f64>>() -> SpatialTransform<f64, R> {
@@ -125,6 +125,7 @@ fn bench_motion_subspace<const N: usize, R: SpatialRepresentation<f64>>(
     let coefficients: [f64; N] = std::array::from_fn(|index| 0.2 * (index as f64 + 1.0));
     let force = sample_force::<R>();
     let inertia = sample_inertia::<R>();
+    let articulated = ArticulatedBodyInertia::try_from(&inertia).unwrap();
     let id = || BenchmarkId::new(backend, N);
 
     c.benchmark_group("motion_subspace_apply")
@@ -140,6 +141,11 @@ fn bench_motion_subspace<const N: usize, R: SpatialRepresentation<f64>>(
     c.benchmark_group("motion_subspace_apply_subspace")
         .bench_function(id(), |bencher| {
             bencher.iter(|| black_box(&inertia).apply_subspace(black_box(&subspace)));
+        });
+
+    c.benchmark_group("articulated_inertia_apply_subspace")
+        .bench_function(id(), |bencher| {
+            bencher.iter(|| black_box(&articulated).apply_subspace(black_box(&subspace)));
         });
 
     c.benchmark_group("motion_subspace_generalized_inertia")
