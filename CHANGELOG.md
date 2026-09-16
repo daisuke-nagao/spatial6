@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-17
+
 ### Added
 
 - `MotionSubspace<const N>` with fixed-size basis columns, generalized-velocity
@@ -19,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   velocities across all built-in backends.
 - Articulated-inertia examples using `MotionSubspace<1>` for their explicit
   prismatic-joint motion subspaces.
+
+### Changed
+
+- Clarified multi-DoF and redundant-subspace semantics, including projected
+  inertia rank and invertibility limitations.
 
 ## [1.1.0] - 2026-09-14
 
@@ -56,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rigid-body inertia, recursive Newton-Euler inverse dynamics, and articulated-body
   inertia across the supported backends.
 
-[Unreleased]: https://github.com/daisuke-nagao/spatial6/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/daisuke-nagao/spatial6/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/daisuke-nagao/spatial6/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/daisuke-nagao/spatial6/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/daisuke-nagao/spatial6/releases/tag/v1.0.0
