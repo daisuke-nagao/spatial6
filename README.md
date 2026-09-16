@@ -5,11 +5,8 @@ dynamics. Spatial coordinates store angular components before linear components.
 
 ```toml
 [dependencies]
-spatial6 = "1.1"
+spatial6 = "1.2"
 ```
-
-The `MotionSubspace` APIs documented below are currently unreleased on `main` and
-are not included in `v1.1.0`.
 
 The crate provides `MotionVector`, `ForceVector`, `MotionSubspace`,
 `SpatialTransform`, `RigidBodyInertia`, and `ArticulatedBodyInertia`.
