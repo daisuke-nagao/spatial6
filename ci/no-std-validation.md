@@ -31,6 +31,35 @@
   representation rustdoc example; existing all-feature tests passed.
 - Later implementation and acceptance evidence is recorded below as checks run.
 
+- Phase 2: unconditional `#![no_std]`, without a crate-root std test exception;
+  default/all-feature tests and warning-free all-feature rustdoc passed. A hosted
+  integration test asserts the unchanged `std::error::Error` contract.
+- Phase 3: dependency fallback policy implemented without dependency-family
+  upgrades; stable and 1.89.0 RISC-V library checks passed with all four non-std
+  features. Historical host tests plus std-only, std+nalgebra, and std+glam passed.
+
+## Dependency and serialization review
+
+The resolved registry sources were inspected independently with Luna (high):
+
+- num-traits 0.2.19 gates `Float` behind std or libm. The explicit lower bound
+  and automatic libm feature provide the existing trait on bare metal.
+- nalgebra 0.35.0 `libm` forwards to simba; `serde-serialize-no-std` avoids the
+  serde/std forwarding in `serde-serialize`. Default macros were already off.
+  `DefaultAllocator<Const<R>, Const<C>>` uses `ArrayStorage`; fixed-size Cholesky
+  and its cloned RHS stay in fixed storage. These are the actual decomposition
+  and solve paths used by the representation overrides.
+- glam 0.33.6 `nostd-libm` selects fallback only without std; `libm` forces its
+  math path. The existing exposed f32/f64 vectors and matrices remain enabled.
+- nalgebra static array serde initializes fixed storage; glam tuple visitors
+  and spatial6's own implementations do not introduce a heap buffer.
+- `MotionSubspace` fills every `Option` before its final `expect`; early end,
+  invalid elements, and excess elements return errors before that point.
+  Zero-dimensional subspaces remain supported.
+- Downstream nalgebra `convert-glam033` plus `libm` can force glam libm through
+  feature unification. The isolated fixture policy does not prohibit users from
+  deliberately selecting that graph.
+
 ## Scope
 
 Target compilation and allocator-free links exercise concrete fixture operations;
