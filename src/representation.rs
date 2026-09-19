@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 /// A scalar type supported by spatial vector and matrix operations.
 ///
@@ -101,7 +101,7 @@ impl<T> SpatialScalar for T where T: num_traits::Float + Debug + Send + Sync + '
 ///     // Overrides the default, which round-trips through
 ///     // `vector3_to_array`/`vector3_from_array` and `crate::math::vector_add`.
 ///     fn vector3_add(left: &Self::Vector3, right: &Self::Vector3) -> Self::Vector3 {
-///         std::array::from_fn(|index| left[index] + right[index])
+///         core::array::from_fn(|index| left[index] + right[index])
 ///     }
 /// }
 ///
@@ -314,8 +314,8 @@ pub trait SpatialRepresentation<T: SpatialScalar>:
         let upper_right = Self::matrix3_to_array(upper_right);
         let lower_left = Self::matrix3_to_array(lower_left);
         let lower_right = Self::matrix3_to_array(lower_right);
-        let matrix = std::array::from_fn(|row| {
-            std::array::from_fn(|column| {
+        let matrix = core::array::from_fn(|row| {
+            core::array::from_fn(|column| {
                 let (block, row, column) = if row < 3 && column < 3 {
                     (&upper_left, row, column)
                 } else if row < 3 {
@@ -476,31 +476,31 @@ where
     }
 
     fn matrix3_from_array(value: [[T; 3]; 3]) -> Self::Matrix3 {
-        let values: [T; 9] = std::array::from_fn(|index| value[index / 3][index % 3]);
+        let values: [T; 9] = core::array::from_fn(|index| value[index / 3][index % 3]);
         nalgebra::Matrix3::from_row_slice(&values)
     }
 
     fn matrix3_to_array(value: &Self::Matrix3) -> [[T; 3]; 3] {
-        std::array::from_fn(|row| std::array::from_fn(|column| value[(row, column)]))
+        core::array::from_fn(|row| core::array::from_fn(|column| value[(row, column)]))
     }
 
     fn matrix6_from_array(value: [[T; 6]; 6]) -> Self::Matrix6 {
-        let values: [T; 36] = std::array::from_fn(|index| value[index / 6][index % 6]);
+        let values: [T; 36] = core::array::from_fn(|index| value[index / 6][index % 6]);
         nalgebra::SMatrix::from_row_slice(&values)
     }
 
     fn matrix6_to_array(value: &Self::Matrix6) -> [[T; 6]; 6] {
-        std::array::from_fn(|row| std::array::from_fn(|column| value[(row, column)]))
+        core::array::from_fn(|row| core::array::from_fn(|column| value[(row, column)]))
     }
 
     fn rotation3_from_array(value: [[T; 3]; 3]) -> Self::Rotation3 {
-        let values: [T; 9] = std::array::from_fn(|index| value[index / 3][index % 3]);
+        let values: [T; 9] = core::array::from_fn(|index| value[index / 3][index % 3]);
         nalgebra::Rotation3::from_matrix_unchecked(nalgebra::Matrix3::from_row_slice(&values))
     }
 
     fn rotation3_to_array(value: &Self::Rotation3) -> [[T; 3]; 3] {
         let matrix = value.matrix();
-        std::array::from_fn(|row| std::array::from_fn(|column| matrix[(row, column)]))
+        core::array::from_fn(|row| core::array::from_fn(|column| matrix[(row, column)]))
     }
 
     fn vector3_zero() -> Self::Vector3 {

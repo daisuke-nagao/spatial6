@@ -80,7 +80,7 @@ where
 
     /// Maps a spatial force to generalized force: `S^T f`.
     pub fn generalized_force(&self, force: &ForceVector<T, R>) -> [T; N] {
-        std::array::from_fn(|index| self.columns[index].dot(force))
+        core::array::from_fn(|index| self.columns[index].dot(force))
     }
 
     /// Maps spatial-force columns to generalized forces: `S^T F`.
@@ -88,14 +88,14 @@ where
         &self,
         forces: &[ForceVector<T, R>; M],
     ) -> [[T; M]; N] {
-        std::array::from_fn(|row| {
-            std::array::from_fn(|column| self.columns[row].dot(&forces[column]))
+        core::array::from_fn(|row| {
+            core::array::from_fn(|column| self.columns[row].dot(&forces[column]))
         })
     }
 
     /// Applies a spatial motion transform to every column: `X S`.
     pub fn transformed(&self, transform: &SpatialTransform<T, R>) -> Self {
-        Self::from_columns(std::array::from_fn(|index| {
+        Self::from_columns(core::array::from_fn(|index| {
             transform.transform_motion(&self.columns[index])
         }))
     }
@@ -143,7 +143,7 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        struct ColumnsVisitor<const N: usize, T, R>(std::marker::PhantomData<(T, R)>);
+        struct ColumnsVisitor<const N: usize, T, R>(core::marker::PhantomData<(T, R)>);
 
         impl<'de, const N: usize, T, R> serde::de::Visitor<'de> for ColumnsVisitor<N, T, R>
         where
@@ -153,7 +153,7 @@ where
         {
             type Value = MotionSubspace<N, T, R>;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 write!(formatter, "exactly {N} motion-subspace columns")
             }
 
@@ -161,7 +161,7 @@ where
             where
                 A: serde::de::SeqAccess<'de>,
             {
-                let mut columns: [Option<MotionVector<T, R>>; N] = std::array::from_fn(|_| None);
+                let mut columns: [Option<MotionVector<T, R>>; N] = core::array::from_fn(|_| None);
                 for (index, column) in columns.iter_mut().enumerate() {
                     *column = Some(
                         sequence
@@ -173,7 +173,7 @@ where
                     return Err(serde::de::Error::invalid_length(N + 1, &self));
                 }
 
-                Ok(MotionSubspace::from_columns(std::array::from_fn(|index| {
+                Ok(MotionSubspace::from_columns(core::array::from_fn(|index| {
                     columns[index]
                         .take()
                         .expect("every column was filled above")
@@ -181,6 +181,6 @@ where
             }
         }
 
-        deserializer.deserialize_tuple(N, ColumnsVisitor(std::marker::PhantomData))
+        deserializer.deserialize_tuple(N, ColumnsVisitor(core::marker::PhantomData))
     }
 }
