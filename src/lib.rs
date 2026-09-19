@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+#![no_std]
+
 //! Backend-agnostic spatial vectors, motion subspaces, transforms, and inertias.
 //!
 //! The default `builtin` feature uses fixed Rust arrays. Disable default features
