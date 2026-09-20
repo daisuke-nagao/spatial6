@@ -173,11 +173,13 @@ where
                     return Err(serde::de::Error::invalid_length(N + 1, &self));
                 }
 
-                Ok(MotionSubspace::from_columns(core::array::from_fn(|index| {
-                    columns[index]
-                        .take()
-                        .expect("every column was filled above")
-                })))
+                Ok(MotionSubspace::from_columns(core::array::from_fn(
+                    |index| {
+                        columns[index]
+                            .take()
+                            .expect("every column was filled above")
+                    },
+                )))
             }
         }
 
