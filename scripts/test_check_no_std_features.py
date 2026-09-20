@@ -272,22 +272,15 @@ class FeatureAuditTests(unittest.TestCase):
             ),
         )
 
-    def test_link_map_selection_rejects_stale_candidates_and_false_substrings(self) -> None:
+    def test_link_map_rejects_false_substrings_and_allocator_symbols(self) -> None:
         target = "riscv32imac-unknown-none-elf"
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             manifest = root / "ci" / "no-std-link" / "Cargo.toml"
             maps = root / "ci" / "no-std-link" / "target" / target / "debug" / "build"
-            first = maps / "spatial6-no-std-link-old" / "out" / "link.map"
             second = maps / "spatial6-no-std-link-new" / "out" / "link.map"
-            first.parent.mkdir(parents=True)
             second.parent.mkdir(parents=True)
             text = "run_array_f32 run_array_f64\n"
-            first.write_text(text, encoding="utf-8")
-            second.write_text(text, encoding="utf-8")
-            with self.assertRaisesRegex(LinkVerificationFailure, "expected one current"):
-                verify_link_map(manifest, (), target=target)
-
             second.write_text(
                 text + "foo_run_array_f64_extra __rust_allocated core::alloc::Layout\n",
                 encoding="utf-8",

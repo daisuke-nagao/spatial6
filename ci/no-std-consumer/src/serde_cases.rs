@@ -956,28 +956,35 @@ where
     }))
 }
 
-fn exercise_f64<R>(seed: f64) -> bool
+fn exercise<T, R>(seed: T) -> bool
 where
-    R: SpatialRepresentation<f64>,
-    RigidBodyInertia<f64, R>: Serialize + for<'de> Deserialize<'de>,
-    ArticulatedBodyInertia<f64, R>: Serialize + for<'de> Deserialize<'de>,
-    ForceVector<f64, R>: Serialize + for<'de> Deserialize<'de>,
-    MotionVector<f64, R>: Serialize + for<'de> Deserialize<'de>,
-    SpatialTransform<f64, R>: Serialize + for<'de> Deserialize<'de>,
+    T: SpatialScalar + Serialize + for<'de> Deserialize<'de>,
+    R: SpatialRepresentation<T>,
+    RigidBodyInertia<T, R>: Serialize + for<'de> Deserialize<'de>,
+    ArticulatedBodyInertia<T, R>: Serialize + for<'de> Deserialize<'de>,
+    ForceVector<T, R>: Serialize + for<'de> Deserialize<'de>,
+    MotionVector<T, R>: Serialize + for<'de> Deserialize<'de>,
+    SpatialTransform<T, R>: Serialize + for<'de> Deserialize<'de>,
 {
-    let motion = MotionVector::<f64, R>::from_array([seed, 1.0, -2.0, 3.0, -4.0, 5.0]);
-    let force = ForceVector::<f64, R>::from_array([1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
-    let transform = SpatialTransform::<f64, R>::new(
+    let s = scalar::<T>;
+    let motion = MotionVector::<T, R>::from_array([seed, s(1.0), s(-2.0), s(3.0), s(-4.0), s(5.0)]);
+    let force =
+        ForceVector::<T, R>::from_array([s(1.0), s(-2.0), s(3.0), s(-4.0), s(5.0), s(-6.0)]);
+    let transform = SpatialTransform::<T, R>::new(
         R::rotation3_identity(),
-        R::vector3_from_array([1.0, 2.0, 3.0]),
+        R::vector3_from_array([s(1.0), s(2.0), s(3.0)]),
     );
-    let rigid = RigidBodyInertia::<f64, R>::try_new(
-        2.0,
-        R::vector3_from_array([0.1, 0.2, 0.3]),
-        R::matrix3_from_array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
+    let rigid = RigidBodyInertia::<T, R>::try_new(
+        s(2.0),
+        R::vector3_from_array([s(0.1), s(0.2), s(0.3)]),
+        R::matrix3_from_array([
+            [s(1.0), s(0.0), s(0.0)],
+            [s(0.0), s(1.0), s(0.0)],
+            [s(0.0), s(0.0), s(1.0)],
+        ]),
     );
     let Ok(rigid) = rigid else { return false };
-    let articulated = ArticulatedBodyInertia::<f64, R>::try_from(&rigid);
+    let articulated = ArticulatedBodyInertia::<T, R>::try_from(&rigid);
     let Ok(articulated) = articulated else {
         return false;
     };
@@ -997,78 +1004,20 @@ where
         round_trip(&articulated, true),
         round_trip(&articulated, false),
         malformed_cases(&articulated),
-        round_trip(&subspace::<0, f64, R>(seed), true),
-        round_trip(&subspace::<0, f64, R>(seed), false),
-        round_trip(&subspace::<1, f64, R>(seed), true),
-        round_trip(&subspace::<1, f64, R>(seed), false),
-        round_trip(&subspace::<3, f64, R>(seed), true),
-        round_trip(&subspace::<3, f64, R>(seed), false),
-        round_trip(&subspace::<6, f64, R>(seed), true),
-        round_trip(&subspace::<6, f64, R>(seed), false),
-        round_trip(&subspace::<7, f64, R>(seed), true),
-        round_trip(&subspace::<7, f64, R>(seed), false),
+        round_trip(&subspace::<0, T, R>(seed), true),
+        round_trip(&subspace::<0, T, R>(seed), false),
+        round_trip(&subspace::<1, T, R>(seed), true),
+        round_trip(&subspace::<1, T, R>(seed), false),
+        round_trip(&subspace::<3, T, R>(seed), true),
+        round_trip(&subspace::<3, T, R>(seed), false),
+        round_trip(&subspace::<6, T, R>(seed), true),
+        round_trip(&subspace::<6, T, R>(seed), false),
+        round_trip(&subspace::<7, T, R>(seed), true),
+        round_trip(&subspace::<7, T, R>(seed), false),
     ];
     values.into_iter().all(|value| value)
-        && subspace_malformed(&subspace::<0, f64, R>(seed))
-        && subspace_malformed(&subspace::<7, f64, R>(seed))
-}
-
-fn exercise_f32<R>(seed: f32) -> bool
-where
-    R: SpatialRepresentation<f32>,
-    RigidBodyInertia<f32, R>: Serialize + for<'de> Deserialize<'de>,
-    ArticulatedBodyInertia<f32, R>: Serialize + for<'de> Deserialize<'de>,
-    ForceVector<f32, R>: Serialize + for<'de> Deserialize<'de>,
-    MotionVector<f32, R>: Serialize + for<'de> Deserialize<'de>,
-    SpatialTransform<f32, R>: Serialize + for<'de> Deserialize<'de>,
-{
-    let motion = MotionVector::<f32, R>::from_array([seed, 1.0, -2.0, 3.0, -4.0, 5.0]);
-    let force = ForceVector::<f32, R>::from_array([1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
-    let transform = SpatialTransform::<f32, R>::new(
-        R::rotation3_identity(),
-        R::vector3_from_array([1.0, 2.0, 3.0]),
-    );
-    let rigid = RigidBodyInertia::<f32, R>::try_new(
-        2.0,
-        R::vector3_from_array([0.1, 0.2, 0.3]),
-        R::matrix3_from_array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
-    );
-    let Ok(rigid) = rigid else { return false };
-    let articulated = ArticulatedBodyInertia::<f32, R>::try_from(&rigid);
-    let Ok(articulated) = articulated else {
-        return false;
-    };
-    [
-        round_trip(&motion, true),
-        round_trip(&motion, false),
-        malformed_cases(&motion),
-        round_trip(&force, true),
-        round_trip(&force, false),
-        malformed_cases(&force),
-        round_trip(&transform, true),
-        round_trip(&transform, false),
-        malformed_cases(&transform),
-        round_trip(&rigid, true),
-        round_trip(&rigid, false),
-        malformed_cases(&rigid),
-        round_trip(&articulated, true),
-        round_trip(&articulated, false),
-        malformed_cases(&articulated),
-        round_trip(&subspace::<0, f32, R>(seed), true),
-        round_trip(&subspace::<0, f32, R>(seed), false),
-        round_trip(&subspace::<1, f32, R>(seed), true),
-        round_trip(&subspace::<1, f32, R>(seed), false),
-        round_trip(&subspace::<3, f32, R>(seed), true),
-        round_trip(&subspace::<3, f32, R>(seed), false),
-        round_trip(&subspace::<6, f32, R>(seed), true),
-        round_trip(&subspace::<6, f32, R>(seed), false),
-        round_trip(&subspace::<7, f32, R>(seed), true),
-        round_trip(&subspace::<7, f32, R>(seed), false),
-    ]
-    .into_iter()
-    .all(|value| value)
-        && subspace_malformed(&subspace::<0, f32, R>(seed))
-        && subspace_malformed(&subspace::<7, f32, R>(seed))
+        && subspace_malformed(&subspace::<0, T, R>(seed))
+        && subspace_malformed(&subspace::<7, T, R>(seed))
 }
 
 pub fn run<R>(seed: f64) -> f64
@@ -1085,7 +1034,7 @@ where
     MotionVector<f32, R>: Serialize + for<'de> Deserialize<'de>,
     SpatialTransform<f32, R>: Serialize + for<'de> Deserialize<'de>,
 {
-    if exercise_f64::<R>(seed) && exercise_f32::<R>(seed as f32) {
+    if exercise::<f64, R>(seed) && exercise::<f32, R>(seed as f32) {
         1.0
     } else {
         f64::NAN

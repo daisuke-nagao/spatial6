@@ -149,16 +149,9 @@ def _profile_root(manifest: Path, target: str | None, profile: str) -> Path:
 
 
 def _scoped_link_map(
-    manifest: Path, target: str | None, profile: str, map_path: Path | None
+    manifest: Path, target: str | None, profile: str, map_path: Path
 ) -> Path:
     profile_root = _profile_root(manifest, target, profile).resolve()
-    if map_path is None:
-        maps = sorted((profile_root / "build").glob("spatial6-no-std-link-*/out/link.map"))
-        if len(maps) != 1:
-            raise LinkVerificationFailure(
-                f"expected one current link.map below {profile_root / 'build'}, found {len(maps)}"
-            )
-        map_path = maps[0]
     map_path = map_path.resolve()
     try:
         map_path.relative_to(profile_root / "build")
@@ -194,7 +187,7 @@ def verify_link_map(
     *,
     target: str | None = None,
     profile: str = "dev",
-    map_path: Path | None = None,
+    map_path: Path,
 ) -> Path:
     """Require the current target/profile map, wrappers, and no allocator symbols."""
 

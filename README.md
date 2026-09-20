@@ -69,13 +69,6 @@ are not promised.
 Downstream nalgebra/glam conversion features can also force glam's libm path
 through feature unification even when std is enabled.
 
-The independent [consumer](https://github.com/daisuke-nagao/spatial6/tree/HEAD/ci/no-std-consumer)
-runs custom and supplied backends for both scalar precisions. The
-[link fixture](https://github.com/daisuke-nagao/spatial6/tree/HEAD/ci/no-std-link)
-checks allocator-free linking on RISC-V and Cortex-M; it is not a board startup
-example. Reproduction commands and evidence are in the repository's
-[validation record](https://github.com/daisuke-nagao/spatial6/blob/HEAD/ci/no-std-validation.md).
-
 ## Examples
 
 See the [API documentation](https://docs.rs/spatial6) for usage and conventions,
