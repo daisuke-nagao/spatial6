@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::array;
+use core::array;
 
 use crate::SpatialScalar;
 

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `no_std` support with automatic floating-point fallback for custom
+  representations and the supplied builtin, nalgebra, and glam backends.
+- Allocator-independent operations for supplied backends with `f32`/`f64`,
+  including their serialization implementations when the caller supplies a
+  suitable non-allocating adapter. Custom implementations retain their own
+  resource requirements.
+- Isolated libm runtime tests, MSRV feature-matrix builds, RISC-V and
+  Cortex-M allocator-free link fixtures, and dependency-feature audits.
+
+### Changed
+
+- Production standard-library references now use `core`; the library is always
+  `no_std`. A default `std` feature forwards std support to enabled numeric
+  dependencies without enabling additional backends.
+- Hosted users disabling default features now use libm unless they enable
+  `spatial6/std` or another dependency unifies std. Performance and floating-point
+  rounding can change, including validation decisions near numerical boundaries;
+  the spatial algorithms, public API, and serialization shapes are preserved.
+
 ## [1.2.0] - 2026-09-16
 
 ### Added

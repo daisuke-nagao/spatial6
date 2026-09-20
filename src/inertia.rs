@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::fmt;
-use std::marker::PhantomData;
-use std::ops::Mul;
+use core::fmt;
+use core::marker::PhantomData;
+use core::ops::Mul;
 
 #[cfg(feature = "builtin")]
 use crate::Builtin;
@@ -40,7 +40,7 @@ impl fmt::Display for InertiaError {
     }
 }
 
-impl std::error::Error for InertiaError {}
+impl core::error::Error for InertiaError {}
 
 fn symmetry_tolerance<T: SpatialScalar>() -> T {
     let mut factor = T::one();
@@ -422,7 +422,7 @@ where
         &self,
         subspace: &MotionSubspace<N, T, R>,
     ) -> [ForceVector<T, R>; N] {
-        std::array::from_fn(|index| self.apply(&subspace.columns()[index]))
+        core::array::from_fn(|index| self.apply(&subspace.columns()[index]))
     }
 
     /// Moves this inertia from `transform`'s source frame, which must be this
@@ -665,7 +665,7 @@ where
         subspace: &MotionSubspace<N, T, R>,
     ) -> [ForceVector<T, R>; N] {
         let matrix = self.matrix();
-        std::array::from_fn(|index| {
+        core::array::from_fn(|index| {
             let motion = subspace.columns()[index].to_vector();
             ForceVector::from_vector(R::matrix6_vector_mul(&matrix, &motion))
         })

@@ -31,6 +31,8 @@ jobs:
         run: uvx pre-commit==4.6.2 run --all-files --show-diff-on-failure
       - name: Check changelog
         run: uvx --with keepachangelog==2.0.0 python -m unittest scripts/test_check_changelog.py
+      - name: Check no-std driver and audit parser
+        run: python -m unittest scripts/test_check_no_std_features.py
       - name: Clippy
         run: cargo +stable clippy --all-targets --all-features -- -D warnings
       - name: Test feature configurations
@@ -41,13 +43,137 @@ jobs:
           cargo +stable test --no-default-features --features glam
           cargo +stable test --features serde
           cargo +stable test --no-default-features --features serde
+          cargo +stable test --no-default-features --features std,builtin
+          cargo +stable test --no-default-features --features std,nalgebra
+          cargo +stable test --no-default-features --features std,glam
+          cargo +stable test --no-default-features --features std,serde
           cargo +stable test --all-features
       - name: Documentation
         env:
           RUSTDOCFLAGS: -D warnings
         run: cargo +stable doc --no-deps --all-features
-      - name: Verify package
-        run: cargo +stable package
+      - name: Documentation without defaults
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: |
+          cargo +stable doc --no-deps --no-default-features
+          cargo +stable doc --no-deps --no-default-features --features nalgebra
+          cargo +stable doc --no-deps --no-default-features --features glam
+  no-std-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Rust
+        run: rustup toolchain install stable --profile minimal
+      - name: Run isolated host matrix
+        run: python scripts/check_no_std.py --mode runtime --toolchain stable
+
+  no-std-targets:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: build
+            toolchain: stable
+            target: riscv32imac-unknown-none-elf
+            subset_args: ''
+          - mode: build
+            toolchain: msrv
+            target: riscv32imac-unknown-none-elf
+            subset_args: ''
+          - mode: build
+            toolchain: stable
+            target: thumbv7em-none-eabihf
+            subset_args: >-
+              --subset custom-only --subset serde-only --subset backend:builtin
+              --subset backend:nalgebra --subset backend:glam
+              --subset backend-serde:builtin --subset backend-serde:nalgebra
+              --subset backend-serde:glam --subset all
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Resolve Rust toolchain
+        id: rust
+        shell: bash
+        run: |
+          toolchain="${{ matrix.toolchain }}"
+          if [ "$toolchain" = msrv ]; then
+            toolchain="$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])')"
+          fi
+          echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
+      - name: Set up Rust and target
+        run: rustup toolchain install ${{ steps.rust.outputs.toolchain }} --profile minimal --target ${{ matrix.target }}
+      - name: Run target feature matrix
+        run: >
+          python scripts/check_no_std.py
+          --mode ${{ matrix.mode }}
+          --toolchain ${{ steps.rust.outputs.toolchain }}
+          --target ${{ matrix.target }} ${{ matrix.subset_args }}
+
+  no-std-link:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: riscv32imac-unknown-none-elf
+            profile: dev
+            subset_args: >-
+              --subset custom-only --subset serde-only --subset backend:builtin
+              --subset backend:nalgebra --subset backend:glam --subset all
+          - target: riscv32imac-unknown-none-elf
+            profile: release
+            subset_args: --subset all
+          - target: thumbv7em-none-eabihf
+            profile: dev
+            subset_args: --subset all
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Rust and target
+        run: rustup toolchain install stable --profile minimal --target ${{ matrix.target }}
+      - name: Link selected cases
+        run: >
+          python scripts/check_no_std.py
+          --mode link
+          --profile ${{ matrix.profile }}
+          --toolchain stable
+          --target ${{ matrix.target }} ${{ matrix.subset_args }}
+
+  no-std-fresh-resolution:
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - stable
+          - msrv
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Resolve Rust toolchain
+        id: rust
+        shell: bash
+        run: |
+          toolchain="${{ matrix.toolchain }}"
+          if [ "$toolchain" = msrv ]; then
+            toolchain="$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])')"
+          fi
+          echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
+      - name: Set up Rust
+        run: rustup toolchain install ${{ steps.rust.outputs.toolchain }} --profile minimal --target riscv32imac-unknown-none-elf
+      - name: Check fresh no-std resolutions
+        run: python scripts/check_no_std_release.py --toolchain ${{ steps.rust.outputs.toolchain }}
 
   native-tests:
     strategy:
@@ -75,7 +201,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Read MSRV
+        id: rust
+        shell: bash
+        run: echo "toolchain=$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])')" >> "$GITHUB_OUTPUT"
       - name: Set up Rust
-        run: rustup toolchain install 1.89.0 --profile minimal
+        run: rustup toolchain install ${{ steps.rust.outputs.toolchain }} --profile minimal
       - name: Test
-        run: cargo +1.89.0 test --all-targets --all-features
+        run: |
+          cargo +${{ steps.rust.outputs.toolchain }} test
+          cargo +${{ steps.rust.outputs.toolchain }} test --all-targets --all-features

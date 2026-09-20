@@ -5,7 +5,7 @@ dynamics. Spatial coordinates store angular components before linear components.
 
 ```toml
 [dependencies]
-spatial6 = "1.2"
+spatial6 = "1"
 ```
 
 The crate provides `MotionVector`, `ForceVector`, `MotionSubspace`,
@@ -14,6 +14,7 @@ The crate provides `MotionVector`, `ForceVector`, `MotionSubspace`,
 | Feature | Backend |
 | --- | --- |
 | `builtin` (default) | Fixed Rust arrays |
+| `std` (default) | Requests std support in enabled numeric dependencies |
 | `nalgebra` | Native nalgebra vectors and matrices |
 | `glam` | Native glam vectors and matrices |
 | `serde` | `Serialize`/`Deserialize` for all public types |
@@ -23,6 +24,52 @@ Enable optional backends with `features = ["nalgebra"]` or `features = ["glam"]`
 Enable `features = ["serde"]` for serialization support; combined with `nalgebra`
 or `glam`, it also enables that backend's own `serde` integration so the
 underlying vector/matrix types serialize too.
+
+## no_std
+
+The library source is always `no_std`. Its default `std` feature enables std
+support in enabled numeric dependencies. Disable default features for bare-metal
+use and select a backend explicitly:
+
+```toml
+[dependencies.spatial6]
+version = "1"
+default-features = false
+features = ["builtin"]
+```
+
+Use `nalgebra` or `glam` instead of `builtin` for those backends; add `serde` for
+serialization. With no backend selected, provide a custom
+`SpatialRepresentation`. Enabling `std` or `serde` alone does not select a backend.
+The floating-point fallback is enabled automatically; no separate `libm` feature
+is required.
+
+With the supplied backends and `f32`/`f64`, the verified no_std operations do not
+require a global allocator. Their serialization implementations use fixed
+storage; custom representations, scalars, serialization adapters, and formatting
+sinks determine their own resource requirements. Fixed storage grows with the
+dimension of `MotionSubspace<N>` and does not imply a constant stack budget.
+The library provides no panic handler and makes no panic-free or hard-real-time
+execution claim.
+
+Cargo unifies dependency features: another runtime dependency can enable std or
+alloc even when this dependency disables defaults. Inspect the final firmware
+graph with an explicit target, for example:
+
+```sh
+cargo tree --target riscv32imac-unknown-none-elf --edges normal,no-proc-macro -e features
+```
+
+For hosted applications that disable defaults, add `std` explicitly to retain
+the std-enabled numeric path. Otherwise the isolated graph uses libm,
+which can change performance and rounding near validation thresholds. Algorithms,
+validation rules, and public API are unchanged by this feature split; bitwise
+reproducibility and identical decisions for every ill-conditioned boundary input
+are not promised.
+Downstream nalgebra/glam conversion features can also force glam's libm path
+through feature unification even when std is enabled.
+
+## Examples
 
 See the [API documentation](https://docs.rs/spatial6) for usage and conventions,
 and [`examples/`](examples/) for worked algorithms built on these types:

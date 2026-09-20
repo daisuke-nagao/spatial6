@@ -1,3 +1,7 @@
 /target
 Cargo.lock
+!ci/no-std-consumer/Cargo.lock
+!ci/no-std-link/Cargo.lock
+/ci/no-std-consumer/target
+/ci/no-std-link/target
 __pycache__/
