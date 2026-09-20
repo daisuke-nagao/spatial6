@@ -1,0 +1,26 @@
+[package]
+name = "spatial6-no-std-link"
+version = "0.0.0"
+publish = false
+edition = "2024"
+rust-version = "1.89"
+
+[workspace]
+resolver = "3"
+
+[features]
+default = []
+builtin = ["spatial6-no-std-consumer/builtin"]
+nalgebra = ["spatial6-no-std-consumer/nalgebra"]
+glam = ["spatial6-no-std-consumer/glam"]
+serde = ["spatial6-no-std-consumer/serde"]
+
+[dependencies.spatial6-no-std-consumer]
+path = "../no-std-consumer"
+default-features = false
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
