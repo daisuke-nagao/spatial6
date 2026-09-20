@@ -373,7 +373,6 @@ def _parser() -> argparse.ArgumentParser:
         action="append",
         help="feature subset (repeatable; aliases include custom-only, serde-only, all)",
     )
-    parser.add_argument("--features", help="one comma-separated feature subset")
     parser.add_argument("--dry-run", action="store_true")
     return parser
 
@@ -391,8 +390,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         specs = list(args.subset or ())
-        if args.features is not None:
-            specs.append(args.features)
         subsets = (
             list(feature_subsets())
             if not specs

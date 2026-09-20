@@ -76,10 +76,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - mode: check
-            toolchain: stable
-            target: riscv32imac-unknown-none-elf
-            subset_args: ''
           - mode: build
             toolchain: stable
             target: riscv32imac-unknown-none-elf

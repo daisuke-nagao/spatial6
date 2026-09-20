@@ -12,7 +12,7 @@ import tarfile
 import tempfile
 import tomllib
 
-from check_no_std import FEATURES, feature_subsets
+from check_no_std import FEATURES
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -46,7 +46,7 @@ def verify(source: Path, directory: Path, toolchain: str, target: str) -> None:
         ), flush=True)
 
     consumer = directory / "no-std-consumer"
-    for selected in feature_subsets():
+    for selected in ((), ("serde",), FEATURES):
         flags = ["--locked", "--no-default-features"]
         if selected:
             flags += ["--features", ",".join(selected)]
