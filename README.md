@@ -5,7 +5,7 @@ dynamics. Spatial coordinates store angular components before linear components.
 
 ```toml
 [dependencies]
-spatial6 = "1.3"
+spatial6 = "1"
 ```
 
 The crate provides `MotionVector`, `ForceVector`, `MotionSubspace`,
@@ -33,7 +33,7 @@ use and select a backend explicitly:
 
 ```toml
 [dependencies.spatial6]
-version = "1.3"
+version = "1"
 default-features = false
 features = ["builtin"]
 ```
@@ -61,19 +61,20 @@ cargo tree --target riscv32imac-unknown-none-elf --edges normal,no-proc-macro -e
 ```
 
 For hosted applications that disable defaults, add `std` explicitly to retain
-the previous std-enabled numeric path. Otherwise the isolated graph uses libm,
+the std-enabled numeric path. Otherwise the isolated graph uses libm,
 which can change performance and rounding near validation thresholds. Algorithms,
-validation rules, and public API remain unchanged; bitwise reproducibility and
-identical decisions for every ill-conditioned boundary input are not promised.
+validation rules, and public API are unchanged by this feature split; bitwise
+reproducibility and identical decisions for every ill-conditioned boundary input
+are not promised.
 Downstream nalgebra/glam conversion features can also force glam's libm path
 through feature unification even when std is enabled.
 
-The independent [consumer](https://github.com/daisuke-nagao/spatial6/tree/main/ci/no-std-consumer)
+The independent [consumer](https://github.com/daisuke-nagao/spatial6/tree/HEAD/ci/no-std-consumer)
 runs custom and supplied backends for both scalar precisions. The
-[link fixture](https://github.com/daisuke-nagao/spatial6/tree/main/ci/no-std-link)
+[link fixture](https://github.com/daisuke-nagao/spatial6/tree/HEAD/ci/no-std-link)
 checks allocator-free linking on RISC-V and Cortex-M; it is not a board startup
 example. Reproduction commands and evidence are in the repository's
-[validation record](https://github.com/daisuke-nagao/spatial6/blob/main/ci/no-std-validation.md).
+[validation record](https://github.com/daisuke-nagao/spatial6/blob/HEAD/ci/no-std-validation.md).
 
 ## Examples
 

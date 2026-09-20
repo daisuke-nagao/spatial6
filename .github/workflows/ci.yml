@@ -88,7 +88,7 @@ jobs:
             target: riscv32imac-unknown-none-elf
             subset_args: ''
           - mode: build
-            toolchain: 1.89.0
+            toolchain: msrv
             target: riscv32imac-unknown-none-elf
             subset_args: ''
           - mode: build
@@ -105,13 +105,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Resolve Rust toolchain
+        id: rust
+        shell: bash
+        run: |
+          toolchain="${{ matrix.toolchain }}"
+          if [ "$toolchain" = msrv ]; then
+            toolchain="$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])')"
+          fi
+          echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
       - name: Set up Rust and target
-        run: rustup toolchain install ${{ matrix.toolchain }} --profile minimal --target ${{ matrix.target }}
+        run: rustup toolchain install ${{ steps.rust.outputs.toolchain }} --profile minimal --target ${{ matrix.target }}
       - name: Run target feature matrix
         run: >
           python scripts/check_no_std.py
           --mode ${{ matrix.mode }}
-          --toolchain ${{ matrix.toolchain }}
+          --toolchain ${{ steps.rust.outputs.toolchain }}
           --target ${{ matrix.target }} ${{ matrix.subset_args }}
 
   no-std-link:
@@ -152,17 +161,26 @@ jobs:
       matrix:
         toolchain:
           - stable
-          - 1.89.0
+          - msrv
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Resolve Rust toolchain
+        id: rust
+        shell: bash
+        run: |
+          toolchain="${{ matrix.toolchain }}"
+          if [ "$toolchain" = msrv ]; then
+            toolchain="$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])')"
+          fi
+          echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
       - name: Set up Rust
-        run: rustup toolchain install ${{ matrix.toolchain }} --profile minimal --target riscv32imac-unknown-none-elf
+        run: rustup toolchain install ${{ steps.rust.outputs.toolchain }} --profile minimal --target riscv32imac-unknown-none-elf
       - name: Check fresh no-std resolutions
-        run: python scripts/check_no_std_release.py --toolchain ${{ matrix.toolchain }}
+        run: python scripts/check_no_std_release.py --toolchain ${{ steps.rust.outputs.toolchain }}
 
   native-tests:
     strategy:
@@ -190,9 +208,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Read MSRV
+        id: rust
+        shell: bash
+        run: echo "toolchain=$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])')" >> "$GITHUB_OUTPUT"
       - name: Set up Rust
-        run: rustup toolchain install 1.89.0 --profile minimal
+        run: rustup toolchain install ${{ steps.rust.outputs.toolchain }} --profile minimal
       - name: Test
         run: |
-          cargo +1.89.0 test
-          cargo +1.89.0 test --all-targets --all-features
+          cargo +${{ steps.rust.outputs.toolchain }} test
+          cargo +${{ steps.rust.outputs.toolchain }} test --all-targets --all-features

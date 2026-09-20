@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   including their serialization implementations when the caller supplies a
   suitable non-allocating adapter. Custom implementations retain their own
   resource requirements.
-- Isolated libm runtime tests, Rust 1.89 feature-matrix builds, RISC-V and
+- Isolated libm runtime tests, MSRV feature-matrix builds, RISC-V and
   Cortex-M allocator-free link fixtures, and dependency-feature audits.
 
 ### Changed

@@ -1,5 +1,6 @@
 import subprocess
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import Mock
@@ -39,6 +40,28 @@ def valid_tree(*, selected: str = "builtin", extra: str = "") -> str:
 
 
 class FeatureAuditTests(unittest.TestCase):
+    def test_fixture_policy_follows_the_root_manifest(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        manifests = [
+            tomllib.loads((root / path).read_text(encoding="utf-8"))
+            for path in (
+                "Cargo.toml",
+                "ci/no-std-consumer/Cargo.toml",
+                "ci/no-std-link/Cargo.toml",
+            )
+        ]
+        root_manifest, consumer, link = manifests
+        self.assertEqual(
+            set(root_manifest["features"]) - {"default", "std"}, set(FEATURES)
+        )
+        self.assertEqual(set(consumer["features"]) - {"default"}, set(FEATURES))
+        self.assertEqual(set(link["features"]) - {"default"}, set(FEATURES))
+        for fixture in (consumer, link):
+            self.assertEqual(
+                fixture["package"]["rust-version"],
+                root_manifest["package"]["rust-version"],
+            )
+
     def test_feature_subsets_are_the_full_canonical_powerset(self) -> None:
         self.assertEqual(FEATURES, ("builtin", "nalgebra", "glam", "serde"))
         self.assertEqual(len(feature_subsets()), 16)

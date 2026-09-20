@@ -11,7 +11,8 @@ f32 and 2e-11 for f64, with wider factors only for composed operations.
 cargo test --manifest-path ci/no-std-consumer/Cargo.toml --locked --no-default-features
 cargo test --manifest-path ci/no-std-consumer/Cargo.toml --locked --no-default-features --features serde
 cargo test --manifest-path ci/no-std-consumer/Cargo.toml --locked --no-default-features --features builtin,nalgebra,glam,serde
-cargo +1.89.0 check --manifest-path ci/no-std-consumer/Cargo.toml --locked --lib --target riscv32imac-unknown-none-elf --no-default-features --features builtin,nalgebra,glam,serde
+MSRV=$(python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["rust-version"])')
+cargo +"$MSRV" check --manifest-path ci/no-std-consumer/Cargo.toml --locked --lib --target riscv32imac-unknown-none-elf --no-default-features --features builtin,nalgebra,glam,serde
 ```
 
 The hosted test harness may use `std`; the consumer library itself remains
